@@ -1,0 +1,238 @@
+﻿/* Reset simple */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+/* Conteneur principal avec background pleine page */
+.page-login {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    padding: 40px 60px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-image: url(../images/background.jpg); /* image du chantier */
+    background-size: cover; /* couvre tout l'écran */
+    background-position: center; /* centré */
+    background-repeat: no-repeat; /* pas de répétition */
+}
+
+    /* Voile foncé pour le contraste texte / image */
+    .page-login::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient( to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.25) );
+        z-index: 0;
+    }
+
+/* Tout le contenu passe au-dessus du voile */
+.hero-content,
+.login-panel {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---- Partie gauche : logo + slogan ---- */
+
+.hero-content {
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 34px;
+}
+
+.logo {
+    height: 200px; /* ajuste selon ton image */
+    width: auto;
+}
+
+.app-name {
+    font-size: 3.8rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.pro-red {
+    color: #e30613; /* rouge */
+}
+
+.pro-yellow {
+    color: #ffd400; /* jaune */
+}
+
+.tagline {
+    font-size: 2.5rem;
+    font-weight: 650;
+    line-height: 1.5;
+}
+
+/* ---- Partie droite : panneau de login ---- */
+
+.login-panel {
+    background-color: #ffd400;
+    border-radius: 50px;
+    padding: 40px 40px;
+    width: 400px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+}
+
+    .login-panel h2 {
+        font-size: 2.4rem;
+        text-align: center;
+        margin-bottom: 3px;
+    }
+
+.subtitle {
+    width: 100%;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #ffffff;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+    .login-form label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+.input-group {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    right: 0;
+    bottom: 10px; /* ajuste verticalement si besoin */
+    font-size: 1.5rem;
+    color: #000;
+}
+
+.input-group input {
+    width: 100%;
+    border: none;
+    border-bottom: 3px solid #000;
+    background: transparent;
+    padding: 10px 0;
+    font-size: 1rem;
+    outline: none;
+}
+
+    .input-group input::placeholder {
+        color: rgba(0, 0, 0, 0.5);
+    }
+
+/* Bouton principal */
+.btn-primary {
+    margin-top: 30px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 0;
+    background-color: #e30613;
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+    .btn-primary:hover {
+        background-color: #ba050f;
+        transform: translateY(-1px);
+    }
+
+/* Lien "Créer un compte" */
+.btn-link {
+    margin-top: 18px;
+    width: 100%;
+    border: none;
+    background: none;
+    color: #ffffff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+    .btn-link:hover {
+        color: #000;
+    }
+
+/* ---- Responsive ---- */
+
+@media (max-width: 992px) {
+    .page-login {
+        flex-direction: column; /* tout en colonne */
+        align-items: center;
+        justify-content: flex-start;
+        padding: 20px 16px;
+        gap: 25px; /* espace entre bloc gauche et form */
+    }
+
+    .hero-content {
+        text-align: center;
+        align-items: center;
+        margin-bottom: 0;
+        gap: 12px; /* logo + nom + slogan plus rapprochés */
+    }
+
+    .brand {
+        flex-direction: column; /* logo au-dessus, nom en dessous */
+        align-items: center;
+        gap: 8px;
+    }
+
+    .logo {
+        height: 120px; /* un peu plus petit sur mobile */
+    }
+
+    .app-name {
+        font-size: 2.2rem;
+    }
+
+    .tagline {
+        font-size: 1.2rem;
+    }
+
+    .login-panel {
+        width: 80%;
+        max-width: 480px;
+        padding: 20px 30px;
+        border-radius: 52px;
+    }
+
+    .login-form {
+        gap: 20px;
+    }
+}

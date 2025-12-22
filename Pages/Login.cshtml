@@ -1,0 +1,61 @@
+﻿@page
+@model IngeProjets.Pages.LoginModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Connexion";
+}
+
+<link rel="stylesheet" href="~/css/Login.css" />
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<div class="page-login">
+    <!-- Partie gauche -->
+    <div class="hero-content">
+        <div class="brand">
+            <img src="~/images/Image1.png" alt="Logo NAAS" class="logo" />
+            <h1 class="app-name">
+                Ingé-<span class="pro-red">Pro</span><span class="pro-yellow">jets</span>
+            </h1>
+        </div>
+
+        <p class="tagline">
+            Le suivi technique, maîtrisé<br />
+            à la perfection
+        </p>
+    </div>
+
+    <!-- Partie droite -->
+    <div class="login-panel">
+        <h2>Connexion</h2>
+        <p class="subtitle">Entrer votre email et mot de<br />passe</p>
+
+        <form method="post" class="login-form">
+
+            <div class="input-group">
+                <label>Email</label>
+                <i class="fa-solid fa-user input-icon"></i>
+                <input asp-for="Email" type="email"
+                       placeholder="email@exemple.com" required />
+            </div>
+
+            <div class="input-group">
+                <label>Mot de passe</label>
+                <i class="fa-solid fa-lock input-icon"></i>
+                <input asp-for="Password" type="password"
+                       placeholder="********" required />
+            </div>
+
+            <button type="submit" class="btn-primary">Se connecter</button>
+
+            <button type="button" class="btn-link">Créer un compte</button>
+
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <p style="color:red; text-align:center;">
+                    @Model.ErrorMessage
+                </p>
+            }
+        </form>
+    </div>
+</div>
