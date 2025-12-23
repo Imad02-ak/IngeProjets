@@ -1,0 +1,217 @@
+﻿/* Reset */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+/* Fond général avec dégradé, centré */
+.register-page {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    background-image: url(/images/background.jpg); /* image du chantier */
+    background-size: cover; /* couvre tout l'écran */
+    background-position: center; /* centré */
+    background-repeat: no-repeat; /* pas de répétition */
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+}
+
+    .register-page::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient( to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.25) );
+        z-index: 0;
+    }
+
+/* Carte centrale à deux colonnes */
+.register-wrapper {
+    background-color: rgba(255, 255, 255, 0.98);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+    display: grid;
+    grid-template-columns: 1.2fr 1.4fr; /* gauche / droite */
+    gap: 32px;
+    padding: 28px 32px;
+    max-width: 900px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+/* Colonne gauche : identité */
+.register-left {
+    background-color: #c4a700;
+    border-radius: 20px;
+    padding: 20px 18px;
+    color: #000000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 44px;
+}
+
+.logo {
+    height: auto;
+    width: 240px;
+}
+
+.app-name {
+    font-size: 2.7rem;
+    font-weight: 750;
+}
+
+.pro-red {
+    color: #e30613;
+}
+
+.pro-yellow {
+    color: #f1d00e;
+}
+
+.tagline {
+    color: #ffffff;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Colonne droite : formulaire */
+.register-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+    .register-right h2 {
+        font-size: 2rem;
+        margin-bottom: 6px;
+        color: #111;
+    }
+
+.subtitle {
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 20px;
+}
+
+/* Formulaire */
+.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+    .register-form label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 2px;
+        color: #222;
+    }
+
+.input-group {
+    position: relative;
+}
+
+/* Icône à droite */
+.input-icon {
+    position: absolute;
+    right: 0;
+    bottom: 10px;
+    font-size: 1rem;
+    color: #555;
+}
+
+/* Inputs soulignés */
+.input-group input {
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid #c4a700;
+    background: transparent;
+    padding: 10px 26px 8px 0;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+    .input-group input::placeholder {
+        color: rgba(0, 0, 0, 0.45);
+    }
+
+    .input-group input:focus {
+        border-color: #e30613;
+        box-shadow: 0 2px 0 0 rgba(227, 6, 19, 0.25);
+    }
+
+/* Bouton principal */
+.btn-primary {
+    margin-top: 18px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 0;
+    background-color: #e30613;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s;
+    box-shadow: 0 10px 20px rgba(227, 6, 19, 0.35);
+}
+
+    .btn-primary:hover {
+        background-color: #ba050f;
+        transform: translateY(-1px);
+    }
+
+/* Lien vers login */
+.btn-link {
+    margin-top: 8px;
+    width: 100%;
+    border: none;
+    background: none;
+    color: #555;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+
+    .btn-link:hover {
+        color: #e30613;
+    }
+
+/* Responsive : la carte passe en colonne verticale */
+@media (max-width: 900px) {
+    .register-wrapper {
+        grid-template-columns: 1fr;
+        padding: 24px 20px;
+        gap: 24px;
+    }
+
+    .register-left {
+        align-items: center;
+        text-align: center;
+    }
+
+    .logo {
+        height: 90px;
+    }
+
+    .app-name {
+        font-size: 2.1rem;
+    }
+}

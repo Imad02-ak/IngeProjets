@@ -1,0 +1,80 @@
+﻿@page
+@model IngeProjets.Pages.RegisterModel
+@{
+    ViewData["Title"] = "Créer un compte";
+    Layout = null;
+}
+
+<link rel="stylesheet" href="~/css/Register.css" />
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+<div class="register-page">
+    <div class="register-wrapper">
+
+        <!-- Colonne gauche -->
+        <div class="register-left">
+            <img src="~/images/Image1.png" alt="Logo NAAS" class="logo" />
+            <h1 class="app-name">
+                Ingé-<span class="pro-red">Pro</span><span class="pro-yellow">jets</span>
+            </h1>
+            <p class="tagline">
+                Le suivi technique, maîtrisé<br />
+                à la perfection
+            </p>
+        </div>
+
+        <!-- Colonne droite -->
+        <div class="register-right">
+            <h2>Créer un compte</h2>
+            <p class="subtitle">
+                Remplissez vos informations pour accéder à Ingé-Projets.
+            </p>
+
+            <form method="post" class="register-form">
+
+                <label>Nom complet</label>
+                <div class="input-group">
+                    <i class="fa-solid fa-user input-icon"></i>
+                    <input asp-for="FullName" placeholder="Nom et prénom" required />
+                </div>
+
+                <label>Email</label>
+                <div class="input-group">
+                    <i class="fa-solid fa-envelope input-icon"></i>
+                    <input asp-for="Email" type="email"
+                           placeholder="email@exemple.com" required />
+                </div>
+
+                <label>Mot de passe</label>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input asp-for="Password" type="password"
+                           placeholder="********" required />
+                </div>
+
+                <label>Confirmer le mot de passe</label>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    <input asp-for="ConfirmPassword" type="password"
+                           placeholder="********" required />
+                </div>
+
+                <button type="submit" class="btn-primary">Créer un compte</button>
+
+                <a href="/Login" class="btn-link">
+                    Déjà un compte ? Se connecter →
+                </a>
+
+                @if (!string.IsNullOrEmpty(Model.Message))
+                {
+                    <p style="text-align:center; font-weight:600; color:green;">
+                        @Model.Message
+                    </p>
+                }
+
+            </form>
+        </div>
+
+    </div>
+</div>
