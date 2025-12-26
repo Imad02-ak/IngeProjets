@@ -5,17 +5,11 @@ namespace IngeProjets.Pages
 {
     public class RegisterModel : PageModel
     {
-        [BindProperty]
-        public required string FullName { get; set; }
-
-        [BindProperty]
-        public required string Email { get; set; }
-
-        [BindProperty]
-        public required string Password { get; set; }
-
-        [BindProperty]
-        public required string ConfirmPassword { get; set; }
+        [BindProperty] public required string Nom { get; set; }
+        [BindProperty] public required string Prenom { get; set; }
+        [BindProperty] public required string Email { get; set; }
+        [BindProperty] public required string Password { get; set; }
+        [BindProperty] public required string ConfirmPassword { get; set; }
 
         public required string Message { get; set; }
 
@@ -27,7 +21,6 @@ namespace IngeProjets.Pages
                 return Page();
             }
 
-            // Simulation (sans base de données)
             Message = "Compte créé avec succès (simulation)";
             return Page();
         }

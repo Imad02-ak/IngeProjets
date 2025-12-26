@@ -20,20 +20,11 @@ body {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    background-image: url(../images/background.jpg); /* image du chantier */
+    background-image: url("../images/backrgoundV2.jpg"); /* image du chantier */
     background-size: cover; /* couvre tout l'écran */
     background-position: center; /* centré */
     background-repeat: no-repeat; /* pas de répétition */
 }
-
-    /* Voile foncé pour le contraste texte / image */
-    .page-login::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient( to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.25) );
-        z-index: 0;
-    }
 
 /* Tout le contenu passe au-dessus du voile */
 .hero-content,
@@ -49,21 +40,22 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 20px;
+    gap: 0px;
 }
 
 .brand {
     display: flex;
     align-items: center;
-    gap: 34px;
+    gap: 35px;
 }
 
 .logo {
-    height: 200px; /* ajuste selon ton image */
+    height: 180px; /* ajuste selon ton image */
     width: auto;
 }
 
 .app-name {
+    color: #000000;
     font-size: 3.8rem;
     font-weight: 700;
     letter-spacing: 1px;
@@ -78,19 +70,24 @@ body {
 }
 
 .tagline {
+    margin-left: 4pc;
     font-size: 2.5rem;
-    font-weight: 650;
+    font-weight: 600;
     line-height: 1.5;
 }
 
-/* ---- Partie droite : panneau de login ---- */
+/* ---- Partie droite : panneau de login (glass) ---- */
 
 .login-panel {
-    background-color: #ffd400;
-    border-radius: 30px;
-    padding: 40px 40px;
-    width: 400px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.3);
+    background-image: linear-gradient( 135deg, rgba(255, 212, 0, 0.16),
+    /* jaune doux */ rgba(255, 255, 255, 0.1) );
+    backdrop-filter: blur(32px) saturate(140%); /* effet glass */
+    -webkit-backdrop-filter: blur(32px) saturate(140%);
+    border-radius: 40px;
+    padding: 30px 40px 38px;
+    width: 430px;
+    box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -98,9 +95,10 @@ body {
 }
 
     .login-panel h2 {
-        font-size: 2.4rem;
+        font-size: 2.5rem;
         text-align: center;
         margin-bottom: 3px;
+        color: #000000;
     }
 
 .subtitle {
@@ -108,77 +106,118 @@ body {
     font-size: 1.2rem;
     font-weight: 600;
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
     color: #ffffff;
 }
+
+/* ---- Formulaire ---- */
 
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 15px;
 }
-
-    .login-form label {
-        font-size: 0.95rem;
-        font-weight: 600;
-        margin-bottom: 2px;
-    }
 
 .input-group {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* espace entre label et .input-box */
 }
 
-.input-icon {
-    position: absolute;
-    right: 0;
-    bottom: 10px; /* ajuste verticalement si besoin */
-    font-size: 1.2rem;
-    color: #000;
-}
-
-.input-group input {
-    width: 100%;
-    border: none;
-    border-bottom: 3px solid #000;
-    background: transparent;
-    padding: 10px 0;
-    font-size: 1rem;
-    outline: none;
-}
-
-    .input-group input::placeholder {
-        color: rgba(0, 0, 0, 0.5);
+    /* Label au-dessus du champ */
+    .input-group label {
+        margin-top: 20px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #222;
+        padding-left: 5px;
     }
+
+/* Boîte de saisie arrondie avec icône (style inscription) */
+.input-box {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 18px;
+    background: linear-gradient(to bottom, #ffffff, #f2f2f2);
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: 0.25s ease;
+}
+
+    /* Icônes dans les champs */
+    .input-box i {
+        color: #caa100;
+        font-size: 1.1rem;
+    }
+
+    /* Champ texte */
+    .input-box input {
+        border: none;
+        outline: none;
+        background: transparent;
+        width: 100%;
+        font-size: 0.95rem;
+    }
+
+        .input-box input::placeholder {
+            color: rgba(0, 0, 0, 0.5);
+        }
+
+    /* Effets hover / focus : box qui monte un peu */
+    .input-box:hover {
+        transform: translateY(-3px);
+    }
+
+    .input-box:focus-within {
+        transform: translateY(-4px); /* le box monte un peu */
+        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(227, 6, 19, 0.4); /* petite ombre + halo rouge */
+        border-color: rgba(227, 6, 19, 0.8); /* bord un peu plus marqué */
+    }
+
+        .input-box:focus-within i {
+            color: #e30613;
+        }
+
+/* ---- Boutons ---- */
 
 /* Bouton principal */
 .btn-primary {
-    margin-top: 30px;
-    width: 100%;
+    margin-top: 22px;
+    width: 60%;
+    max-width: 320px;
+    display: block;
+    margin-left: auto; /* centre horizontalement */
+    margin-right: auto;
     border: none;
-    border-radius: 999px;
+    border-radius: 9999px;
     padding: 14px 0;
-    background-color: #e30613;
+    background: linear-gradient(to bottom, #ff2b2b, #c40000);
     color: #ffffff;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     cursor: pointer;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
     .btn-primary:hover {
-        background-color: #ba050f;
-        transform: translateY(-1px);
+        background: linear-gradient(to bottom, #caa100, #caa100);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        color: #000;
     }
 
 /* Lien "Créer un compte" */
 .btn-link {
-    margin-top: 18px;
+    margin-top: 16px;
     width: 100%;
     border: none;
     background: none;
-    color: #ffffff;
-    font-size: 1.2rem;
+    color: #312e2e;
+    font-size: 1.05rem;
     font-weight: 700;
     text-align: center;
     cursor: pointer;
@@ -186,7 +225,8 @@ body {
 }
 
     .btn-link:hover {
-        color: #000;
+        color: #000000;
+        transform: translateY(-2px);
     }
 
 /* ---- Responsive ---- */
@@ -226,13 +266,13 @@ body {
     }
 
     .login-panel {
-        width: 80%;
+        width: 100%;
         max-width: 480px;
-        padding: 20px 30px;
-        border-radius: 52px;
+        padding: 24px 30px;
+        border-radius: 36px;
     }
 
     .login-form {
-        gap: 20px;
+        gap: 18px;
     }
 }
