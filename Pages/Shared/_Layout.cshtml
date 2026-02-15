@@ -1,50 +1,2515 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿@using Microsoft.AspNetCore.Identity
+@using IngeProjets.Data.Models
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@{
+    var user = await UserManager.GetUserAsync(User);
+    var roles = user != null ? await UserManager.GetRolesAsync(user) : new List<string>();
+    var userRole = roles.FirstOrDefault() ?? "Utilisateur";
+    var userName = user?.NomComplet ?? "Utilisateur";
+    var userPrenom = user?.Prenom ?? "";
+}
+<!doctype html>
+<html lang="fr">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - IngeProjets</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/IngeProjets.styles.css" asp-append-version="true" />
+
+    <title>@ViewData["Title"] - Ingé-Projets</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="~/images/logo.png" />
+
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Leaflet pour la carte -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- DHTMLX Gantt -->
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/7.1/dhtmlxgantt.css" />
+    <script src="https://cdn.dhtmlx.com/gantt/7.1/dhtmlxgantt.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="~/css/styles_layout.css" asp-append-version="true" />
+
+    <!-- Algeria Geo Data -->
+    <script src="~/js/algeria-geo.js" charset="utf-8" asp-append-version="true"></script>
+    <!-- JS en defer -->
+    <script src="~/js/Layout_Script.js" defer asp-append-version="true"></script>
 </head>
+
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">IngeProjets</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
-                        </li>
-                    </ul>
+    <div class="app">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-bar">
+                    <div class="logo">
+                        <span><img class="logo-icon" src="~/images/logo.png" alt="img" /></span>
+                        <span class="logo-full">
+                            <span class="logo-part logo-black">Ingé-</span><span class="logo-part logo-red">Pro</span><span class="logo-part logo-yellow">jets</span>
+                        </span>
+                    </div>
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+
+            <!-- NAVIGATION -->
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                    <div class="nav-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <span class="nav-text">Tableau de bord</span>
+                </a>
+                <a href="#projets" class="nav-item" data-page="projets">
+                    <div class="nav-icon"><i class="fa-solid fa-folder-open"></i></div>
+                    <span class="nav-text">Projets</span>
+                </a>
+                <a href="#planning" class="nav-item" data-page="planning">
+                    <div class="nav-icon">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </div>
+                    <span class="nav-text">Planning</span>
+                </a>
+                <a href="#budgets" class="nav-item" data-page="budgets">
+                    <div class="nav-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                    <span class="nav-text">Budgets</span>
+                </a>
+                <a href="#rapports" class="nav-item" data-page="rapports">
+                    <div class="nav-icon"><i class="fa-solid fa-chart-bar"></i></div>
+                    <span class="nav-text">Rapports</span>
+                </a>
+                <a href="#utilisateurs" class="nav-item" data-page="utilisateurs">
+                    <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
+                    <span class="nav-text">Utilisateurs</span>
+                </a>
+                <a href="#parametres" class="nav-item" data-page="parametres">
+                    <div class="nav-icon"><i class="fa-solid fa-gear"></i></div>
+                    <span class="nav-text">Paramètres</span>
+                </a>
+                <a href="#support" class="nav-item" data-page="support">
+                    <div class="nav-icon">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </div>
+                    <span class="nav-text">Aide &amp; support</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <div class="main">
+            <!-- TOPBAR -->
+            <div class="topbar-wrapper">
+                <header class="topbar">
+                    <div class="topbar-left">
+                        <h1 class="welcome-title" id="pageTitle">Bonjour @userName</h1>
+                        <span class="welcome-date" id="currentDate"></span>
+                    </div>
+
+                    <div class="topbar-right">
+                        <!-- Recherche globale -->
+                        <div class="global-search">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text"
+                                   placeholder="Rechercher..."
+                                   id="globalSearch" />
+                        </div>
+
+                        <!-- NOTIFICATIONS -->
+                        <div class="notif">
+                            <button id="notifBtn"
+                                    class="icon-button notification-button"
+                                    aria-label="Notifications"
+                                    aria-haspopup="menu"
+                                    aria-expanded="false"
+                                    aria-controls="notifMenu"
+                                    data-tooltip="Notifications"
+                                    type="button">
+                                <i class="fa-solid fa-bell"></i>
+                                <span class="badge">5</span>
+                            </button>
+
+                            <div id="notifMenu"
+                                 class="notif-menu"
+                                 role="menu"
+                                 aria-labelledby="notifBtn"
+                                 hidden>
+                                <div class="notif-header">
+                                    <span class="notif-title">Notifications</span>
+                                    <button type="button"
+                                            class="notif-clear"
+                                            id="notifClearBtn">
+                                        Tout marquer comme lu
+                                    </button>
+                                </div>
+
+                                <div class="notif-list">
+                                    <a class="notif-item"
+                                       href="#n1"
+                                       role="menuitem"
+                                       data-read="false">
+                                        <span class="notif-dot"></span>
+                                        <div class="notif-content">
+                                            <div class="notif-text">
+                                                <strong>Nouveau chantier</strong> : Construction Pont
+                                                RN7 ajouté.
+                                            </div>
+                                            <div class="notif-time">Il y a 5 min</div>
+                                        </div>
+                                    </a>
+                                    <a class="notif-item"
+                                       href="#n2"
+                                       role="menuitem"
+                                       data-read="false">
+                                        <span class="notif-dot"></span>
+                                        <div class="notif-content">
+                                            <div class="notif-text">
+                                                <strong>Alerte budget</strong> : Dépassement de 15%
+                                                sur Route Nationale 12.
+                                            </div>
+                                            <div class="notif-time">Il y a 30 min</div>
+                                        </div>
+                                    </a>
+                                    <a class="notif-item"
+                                       href="#n3"
+                                       role="menuitem"
+                                       data-read="false">
+                                        <span class="notif-dot"></span>
+                                        <div class="notif-content">
+                                            <div class="notif-text">
+                                                <strong>Inspection</strong> : Rapport de conformité
+                                                disponible.
+                                            </div>
+                                            <div class="notif-time">Il y a 1h</div>
+                                        </div>
+                                    </a>
+                                    <a class="notif-item"
+                                       href="#n4"
+                                       role="menuitem"
+                                       data-read="true">
+                                        <span class="notif-dot"></span>
+                                        <div class="notif-content">
+                                            <div class="notif-text">
+                                                <strong>Planning</strong> : 3 tâches arrivent à
+                                                échéance.
+                                            </div>
+                                            <div class="notif-time">Hier</div>
+                                        </div>
+                                    </a>
+                                    <a class="notif-item"
+                                       href="#n5"
+                                       role="menuitem"
+                                       data-read="true">
+                                        <span class="notif-dot"></span>
+                                        <div class="notif-content">
+                                            <div class="notif-text">
+                                                <strong>Équipe</strong> : Nouvel utilisateur ajouté à
+                                                l'équipe.
+                                            </div>
+                                            <div class="notif-time">Hier</div>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                <a class="notif-footer" href="#all-notifs">Voir toutes les notifications</a>
+                            </div>
+                        </div>
+
+                        <!-- PROFIL -->
+                        <div class="profile">
+                            <button id="profileBtn"
+                                    class="icon-button profile-button"
+                                    aria-label="Mon profil"
+                                    aria-haspopup="menu"
+                                    aria-expanded="false"
+                                    aria-controls="profileMenu"
+                                    data-tooltip="Mon profil"
+                                    type="button">
+                                <i class="fa-solid fa-user-circle"></i>
+                            </button>
+
+                            <div id="profileMenu"
+                                 class="profile-menu"
+                                 role="menu"
+                                 aria-labelledby="profileBtn"
+                                 hidden>
+                                <div class="profile-header">
+                                    <div class="profile-avatar">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div class="profile-meta">
+                                        <div class="profile-name">@userName</div>
+                                        <div class="profile-role">@userRole</div>
+                                    </div>
+                                </div>
+
+                                <div class="profile-items">
+                                    <a class="profile-item" href="#mon-profil" role="menuitem">
+                                        <i class="fa-solid fa-id-card"></i> Mon profil
+                                    </a>
+                                    <a class="profile-item" href="#parametres" role="menuitem">
+                                        <i class="fa-solid fa-gear"></i> Paramètres
+                                    </a>
+                                    <a class="profile-item" href="#support" role="menuitem">
+                                        <i class="fa-solid fa-circle-question"></i> Aide &amp; support
+                                    </a>
+                                </div>
+
+                                <a href="/Logout" class="profile-logout" id="logoutBtn">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                    Déconnexion
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            </div>
+
+            <!-- CONTENEUR SPA PRINCIPAL -->
+            <main class="content" id="mainContent">
+                <!-- ========================================== -->
+                <!-- PAGE: TABLEAU DE BORD -->
+                <!-- ========================================== -->
+                <section class="page-section active" id="page-dashboard">
+                    <!-- KPI Cards -->
+                    <div class="kpi-grid">
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--primary">
+                                <i class="fa-solid fa-hard-hat"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Chantiers Actifs</h3>
+                                <p class="kpi-value">24</p>
+                                <span class="kpi-change kpi-change--positive">+3 ce mois</span>
+                            </div>
+                        </div>
+
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--success">
+                                <i class="fa-solid fa-check-double"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Projets Terminés</h3>
+                                <p class="kpi-value">156</p>
+                                <span class="kpi-change kpi-change--positive">+12% vs 2025</span>
+                            </div>
+                        </div>
+
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--warning">
+                                <i class="fa-solid fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Alertes</h3>
+                                <p class="kpi-value">7</p>
+                                <span class="kpi-change kpi-change--negative">+2 aujourd'hui</span>
+                            </div>
+                        </div>
+
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--info">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Budget Total</h3>
+                                <p class="kpi-value">45.2M €</p>
+                                <span class="kpi-change kpi-change--neutral">78% utilisé</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Graphiques Row -->
+                    <div class="dashboard-charts">
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-chart-area"></i> Évolution des Projets
+                                </h2>
+                                <select class="chart-filter" id="chartPeriod">
+                                    <option value="week">Cette semaine</option>
+                                    <option value="month" selected>Ce mois</option>
+                                    <option value="year">Cette année</option>
+                                </select>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="projectsChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-pie-chart"></i> Répartition par Type
+                                </h2>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="typeChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Projets Récents + Activités -->
+                    <div class="dashboard-bottom">
+                        <div class="card projects-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-folder-tree"></i> Chantiers Récents
+                                </h2>
+                                <a href="#projets" class="card-action" data-nav="projets">
+                                    Voir tout <i class="fa-solid fa-arrow-right"></i>
+                                </a>
+                            </div>
+                            <div class="projects-list" id="recentProjects">
+                                <!-- Rempli par JS -->
+                            </div>
+                        </div>
+
+                        <div class="card activity-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Activité
+                                    Récente
+                                </h2>
+                            </div>
+                            <div class="activity-timeline" id="activityTimeline">
+                                <!-- Rempli par JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Planning rapide -->
+                    <div class="card upcoming-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-calendar-check"></i> Échéances Proches
+                            </h2>
+                            <a href="#planning" class="card-action" data-nav="planning">
+                                Voir planning <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="upcoming-list" id="upcomingTasks">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: PROJETS -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-projets">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Gestion des Projets</h2>
+                            <p class="page-subtitle">
+                                Gérez tous vos chantiers et projets de travaux publics
+                            </p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-outline" id="exportProjectsBtn">
+                                <i class="fa-solid fa-download"></i> Exporter
+                            </button>
+                            <label class="btn btn-outline" id="importProjectsLabel" style="cursor:pointer;margin:0;">
+                                <i class="fa-solid fa-upload"></i> Importer
+                                <input type="file" id="importProjectsFile" accept=".json,.csv" style="display:none;" />
+                            </label>
+                            <button class="btn btn-primary" id="newProjectBtn">
+                                <i class="fa-solid fa-plus"></i> Nouveau Projet
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Filtres -->
+                    <div class="filters-bar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text"
+                                   placeholder="Rechercher un projet..."
+                                   id="projectSearch" />
+                        </div>
+                        <div class="filter-group">
+                            <select id="filterStatus" class="filter-select">
+                                <option value="">Tous les statuts</option>
+                                <option value="planning">En planification</option>
+                                <option value="progress">En cours</option>
+                                <option value="paused">En pause</option>
+                                <option value="completed">Terminé</option>
+                                <option value="delayed">En retard</option>
+                            </select>
+                            <select id="filterType" class="filter-select">
+                                <option value="">Tous les types</option>
+                                <option value="route">Routes &amp; Autoroutes</option>
+                                <option value="pont">Ponts &amp; Viaducs</option>
+                                <option value="batiment">Bâtiments Publics</option>
+                                <option value="assainissement">Assainissement</option>
+                                <option value="energie">Énergie &amp; Réseaux</option>
+                            </select>
+                            <select id="filterPriority" class="filter-select">
+                                <option value="">Toutes priorités</option>
+                                <option value="urgent">Urgent</option>
+                                <option value="high">Haute</option>
+                                <option value="medium">Moyenne</option>
+                                <option value="low">Basse</option>
+                            </select>
+                        </div>
+                        <div class="view-toggle">
+                            <button class="view-btn active"
+                                    data-view="grid"
+                                    title="Vue grille">
+                                <i class="fa-solid fa-grip"></i>
+                            </button>
+                            <button class="view-btn" data-view="list" title="Vue liste">
+                                <i class="fa-solid fa-list"></i>
+                            </button>
+                            <button class="view-btn" data-view="map" title="Vue carte">
+                                <i class="fa-solid fa-map"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Statistiques rapides -->
+                    <div class="quick-stats">
+                        <div class="quick-stat">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-folder-open"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="totalProjectsCount">24</span>
+                                <span class="quick-stat-label">Total</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat quick-stat--progress">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-spinner"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="progressProjectsCount">15</span>
+                                <span class="quick-stat-label">En cours</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat quick-stat--warning">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="delayedProjectsCount">3</span>
+                                <span class="quick-stat-label">En retard</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat quick-stat--success">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-circle-check"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="completedProjectsCount">6</span>
+                                <span class="quick-stat-label">Terminés</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Grille des projets -->
+                    <div class="projects-grid" id="projectsGrid">
+                        <!-- Rempli par JS -->
+                    </div>
+
+                    <!-- Vue carte des projets -->
+                    <div class="projects-map-container hidden" id="projectsMap">
+                        <div id="projectsMapLeaflet" class="projects-map-leaflet"></div>
+                    </div>
+
+                    <!-- Liste des projets (vue alternative) -->
+                    <div class="projects-table-container hidden" id="projectsTable">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllProjects" /></th>
+                                    <th>Projet</th>
+                                    <th>Type</th>
+                                    <th>Chef de Projet</th>
+                                    <th>Budget</th>
+                                    <th>Avancement</th>
+                                    <th>Statut</th>
+                                    <th>Échéance</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projectsTableBody">
+                                <!-- Rempli par JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button class="pagination-btn" id="prevPage" disabled>
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span class="pagination-info">
+                            Page <span id="currentPage">1</span> sur
+                            <span id="totalPages">3</span>
+                        </span>
+                        <button class="pagination-btn" id="nextPage">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: PLANNING -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-planning">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Planning &amp; Calendrier</h2>
+                            <p class="page-subtitle">
+                                Planifiez et suivez l'avancement de vos chantiers
+                            </p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-outline" id="syncCalendarBtn">
+                                <i class="fa-solid fa-sync"></i> Synchroniser
+                            </button>
+                            <button class="btn btn-primary" id="newTaskBtn">
+                                <i class="fa-solid fa-plus"></i> Nouvelle Tâche
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Planning Navigation -->
+                    <div class="planning-nav">
+                        <div class="planning-tabs">
+                            <button class="planning-tab active" data-view="calendar">
+                                <i class="fa-solid fa-calendar"></i> Calendrier
+                            </button>
+                            <button class="planning-tab" data-view="gantt">
+                                <i class="fa-solid fa-bars-staggered"></i> Gantt
+                            </button>
+                            <button class="planning-tab" data-view="kanban">
+                                <i class="fa-solid fa-columns"></i> Kanban
+                            </button>
+                            <button class="planning-tab" data-view="timeline">
+                                <i class="fa-solid fa-timeline"></i> Timeline
+                            </button>
+                        </div>
+                        <div class="planning-controls">
+                            <button class="btn btn-icon" id="prevMonth">
+                                <i class="fa-solid fa-chevron-left"></i>
+                            </button>
+                            <span class="current-period" id="currentPeriod">Février 2026</span>
+                            <button class="btn btn-icon" id="nextMonth">
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </button>
+                            <button class="btn btn-outline btn-sm" id="todayBtn">
+                                Aujourd'hui
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats bar -->
+                    <div class="planning-stats-bar" id="planningStats">
+                        <!-- Rempli par JS -->
+                    </div>
+
+                    <!-- Vue Calendrier -->
+                    <div class="planning-view active" id="calendarView">
+                        <div class="calendar-header">
+                            <div class="calendar-day-name">Lun</div>
+                            <div class="calendar-day-name">Mar</div>
+                            <div class="calendar-day-name">Mer</div>
+                            <div class="calendar-day-name">Jeu</div>
+                            <div class="calendar-day-name">Ven</div>
+                            <div class="calendar-day-name weekend">Sam</div>
+                            <div class="calendar-day-name weekend">Dim</div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+
+                    <!-- Vue Gantt (DHTMLX) -->
+                    <div class="planning-view hidden" id="ganttView">
+                        <div class="gantt-toolbar">
+                            <div class="gantt-toolbar-left">
+                                <select class="filter-select" id="ganttProjectFilter">
+                                    <option value="">Tous les projets</option>
+                                </select>
+                            </div>
+                            <div class="gantt-toolbar-right">
+                                <div class="gantt-zoom-btns">
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="day">Jour</button>
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn active" data-zoom="week">Semaine</button>
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="month">Mois</button>
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="year">Année</button>
+                                </div>
+                                <button class="btn btn-sm btn-outline" id="ganttTodayBtn">
+                                    <i class="fa-solid fa-crosshairs"></i> Aujourd'hui
+                                </button>
+                                <button class="btn btn-sm btn-outline" id="ganttExpandAllBtn">
+                                    <i class="fa-solid fa-expand"></i> Tout déplier
+                                </button>
+                                <button class="btn btn-sm btn-outline" id="ganttCollapseAllBtn">
+                                    <i class="fa-solid fa-compress"></i> Tout replier
+                                </button>
+                            </div>
+                        </div>
+                        <div id="dhtmlxGantt" style="width:100%; height:600px;"></div>
+                    </div>
+
+                    <!-- Vue Kanban -->
+                    <div class="planning-view hidden" id="kanbanView">
+                        <div class="kanban-board">
+                            <div class="kanban-column" data-status="todo">
+                                <div class="kanban-column-header">
+                                    <span class="kanban-column-title">À faire</span>
+                                    <span class="kanban-count" id="kanbanTodoCount">0</span>
+                                </div>
+                                <div class="kanban-cards" id="kanbanTodo">
+                                    <!-- Rempli par JS -->
+                                </div>
+                            </div>
+                            <div class="kanban-column" data-status="progress">
+                                <div class="kanban-column-header">
+                                    <span class="kanban-column-title">En cours</span>
+                                    <span class="kanban-count" id="kanbanProgressCount">0</span>
+                                </div>
+                                <div class="kanban-cards" id="kanbanProgress">
+                                    <!-- Rempli par JS -->
+                                </div>
+                            </div>
+                            <div class="kanban-column" data-status="review">
+                                <div class="kanban-column-header">
+                                    <span class="kanban-column-title">En revue</span>
+                                    <span class="kanban-count" id="kanbanReviewCount">0</span>
+                                </div>
+                                <div class="kanban-cards" id="kanbanReview">
+                                    <!-- Rempli par JS -->
+                                </div>
+                            </div>
+                            <div class="kanban-column" data-status="done">
+                                <div class="kanban-column-header">
+                                    <span class="kanban-column-title">Terminé</span>
+                                    <span class="kanban-count" id="kanbanDoneCount">0</span>
+                                </div>
+                                <div class="kanban-cards" id="kanbanDone">
+                                    <!-- Rempli par JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vue Timeline -->
+                    <div class="planning-view hidden" id="timelineView">
+                        <div class="timeline-container" id="timelineContainer">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+
+                    <!-- Légende et ressources -->
+                    <div class="planning-footer">
+                        <div class="card legend-card">
+                            <h3 class="card-title">Légende</h3>
+                            <div class="legend-items">
+                                <span class="legend-item">
+                                    <span class="legend-color legend-urgent"></span>
+                                    Urgent
+                                </span>
+                                <span class="legend-item">
+                                    <span class="legend-color legend-high"></span> Haute
+                                    priorité
+                                </span>
+                                <span class="legend-item">
+                                    <span class="legend-color legend-medium"></span>
+                                    Moyenne
+                                </span>
+                                <span class="legend-item">
+                                    <span class="legend-color legend-low"></span> Basse
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card resources-summary">
+                            <h3 class="card-title">Ressources Allouées</h3>
+                            <div class="resources-stats">
+                                <div class="resource-stat">
+                                    <i class="fa-solid fa-users"></i>
+                                    <span><strong>156</strong> Ouvriers</span>
+                                </div>
+                                <div class="resource-stat">
+                                    <i class="fa-solid fa-truck"></i>
+                                    <span><strong>42</strong> Engins</span>
+                                </div>
+                                <div class="resource-stat">
+                                    <i class="fa-solid fa-box"></i>
+                                    <span><strong>85%</strong> Matériaux</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: BUDGETS -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-budgets">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Gestion Budgétaire</h2>
+                            <p class="page-subtitle">
+                                Suivez les finances et budgets de vos projets
+                            </p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-outline" id="exportBudgetBtn">
+                                <i class="fa-solid fa-file-excel"></i> Exporter Excel
+                            </button>
+                            <button class="btn btn-primary" id="newBudgetBtn">
+                                <i class="fa-solid fa-plus"></i> Nouveau Budget
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Financiers -->
+                    <div class="budget-kpis">
+                        <div class="card budget-kpi-card">
+                            <div class="budget-kpi-header">
+                                <span class="budget-kpi-label">Budget Total Alloué</span>
+                                <i class="fa-solid fa-wallet budget-kpi-icon"></i>
+                            </div>
+                            <div class="budget-kpi-value">45 200 000 €</div>
+                            <div class="budget-kpi-sub">Sur 24 projets actifs</div>
+                        </div>
+                        <div class="card budget-kpi-card">
+                            <div class="budget-kpi-header">
+                                <span class="budget-kpi-label">Dépenses Engagées</span>
+                                <i class="fa-solid fa-money-bill-trend-up budget-kpi-icon icon-warning"></i>
+                            </div>
+                            <div class="budget-kpi-value">35 156 000 €</div>
+                            <div class="budget-progress">
+                                <div class="budget-progress-bar" style="width: 78%"></div>
+                            </div>
+                            <div class="budget-kpi-sub">78% du budget total</div>
+                        </div>
+                        <div class="card budget-kpi-card">
+                            <div class="budget-kpi-header">
+                                <span class="budget-kpi-label">Budget Restant</span>
+                                <i class="fa-solid fa-piggy-bank budget-kpi-icon icon-success"></i>
+                            </div>
+                            <div class="budget-kpi-value">10 044 000 €</div>
+                            <div class="budget-kpi-sub">22% disponible</div>
+                        </div>
+                        <div class="card budget-kpi-card">
+                            <div class="budget-kpi-header">
+                                <span class="budget-kpi-label">Dépassements</span>
+                                <i class="fa-solid fa-triangle-exclamation budget-kpi-icon icon-danger"></i>
+                            </div>
+                            <div class="budget-kpi-value budget-danger">3 projets</div>
+                            <div class="budget-kpi-sub">1 245 000 € au total</div>
+                        </div>
+                    </div>
+
+                    <!-- Graphiques Budget -->
+                    <div class="budget-charts">
+                        <div class="card chart-card-large">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-chart-line"></i> Évolution Budgétaire
+                                </h2>
+                                <div class="chart-legend">
+                                    <span class="legend-dot legend-budget"></span> Budget prévu
+                                    <span class="legend-dot legend-spent"></span> Dépenses
+                                    réelles
+                                </div>
+                            </div>
+                            <div class="chart-container-large">
+                                <canvas id="budgetEvolutionChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card chart-card-small">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-chart-pie"></i> Répartition Dépenses
+                                </h2>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="expensesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table des Budgets -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-table"></i> Détail par Projet
+                            </h2>
+                            <div class="table-actions">
+                                <input type="text"
+                                       placeholder="Rechercher..."
+                                       class="table-search"
+                                       id="budgetSearch" />
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table budget-table">
+                                <thead>
+                                    <tr>
+                                        <th>Projet</th>
+                                        <th>Budget Alloué</th>
+                                        <th>Dépensé</th>
+                                        <th>Restant</th>
+                                        <th>Progression</th>
+                                        <th>Statut</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="budgetTableBody">
+                                    <!-- Rempli par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transactions Récentes -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-receipt"></i> Transactions Récentes
+                            </h2>
+                            <a href="#" class="card-action">
+                                Voir tout <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="transactions-list" id="transactionsList">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: RAPPORTS -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-rapports">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Rapports &amp; Analytics</h2>
+                            <p class="page-subtitle">
+                                Générez des rapports détaillés et analysez vos performances
+                            </p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-outline" id="scheduleReportBtn">
+                                <i class="fa-solid fa-clock"></i> Planifier
+                            </button>
+                            <button class="btn btn-primary" id="generateReportBtn">
+                                <i class="fa-solid fa-file-lines"></i> Générer Rapport
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Types de Rapports -->
+                    <div class="reports-types">
+                        <div class="card report-type-card" data-report="performance">
+                            <div class="report-type-icon icon-primary">
+                                <i class="fa-solid fa-gauge-high"></i>
+                            </div>
+                            <h3 class="report-type-title">Performance</h3>
+                            <p class="report-type-desc">
+                                Analyse des performances des chantiers
+                            </p>
+                            <button class="btn btn-sm btn-outline">Générer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="financial">
+                            <div class="report-type-icon icon-success">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <h3 class="report-type-title">Financier</h3>
+                            <p class="report-type-desc">Rapport budgétaire et dépenses</p>
+                            <button class="btn btn-sm btn-outline">Générer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="progress">
+                            <div class="report-type-icon icon-warning">
+                                <i class="fa-solid fa-bars-progress"></i>
+                            </div>
+                            <h3 class="report-type-title">Avancement</h3>
+                            <p class="report-type-desc">
+                                Suivi de l'avancement des projets
+                            </p>
+                            <button class="btn btn-sm btn-outline">Générer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="resources">
+                            <div class="report-type-icon icon-info">
+                                <i class="fa-solid fa-people-group"></i>
+                            </div>
+                            <h3 class="report-type-title">Ressources</h3>
+                            <p class="report-type-desc">Utilisation des ressources</p>
+                            <button class="btn btn-sm btn-outline">Générer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="quality">
+                            <div class="report-type-icon icon-danger">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                            </div>
+                            <h3 class="report-type-title">Qualité</h3>
+                            <p class="report-type-desc">Contrôle qualité et conformité</p>
+                            <button class="btn btn-sm btn-outline">Générer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="custom">
+                            <div class="report-type-icon icon-purple">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <h3 class="report-type-title">Personnalisé</h3>
+                            <p class="report-type-desc">Créez votre propre rapport</p>
+                            <button class="btn btn-sm btn-outline">Créer</button>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Dashboard -->
+                    <div class="analytics-grid">
+                        <div class="card analytics-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-chart-area"></i> Tendances Mensuelles
+                                </h2>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="trendsChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card analytics-card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-ranking-star"></i> Top Performances
+                                </h2>
+                            </div>
+                            <div class="performance-list" id="performanceList">
+                                <!-- Rempli par JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rapports Générés -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-folder-open"></i> Rapports Générés
+                            </h2>
+                            <div class="card-tabs">
+                                <button class="card-tab active">Récents</button>
+                                <button class="card-tab">Planifiés</button>
+                                <button class="card-tab">Archivés</button>
+                            </div>
+                        </div>
+                        <div class="reports-list" id="reportsList">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: UTILISATEURS -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-utilisateurs">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Gestion des Utilisateurs</h2>
+                            <p class="page-subtitle">
+                                Gérez les équipes, rôles et permissions
+                            </p>
+                        </div>
+                        <div class="page-header-actions">
+                            <button class="btn btn-outline" id="importUsersBtn">
+                                <i class="fa-solid fa-upload"></i> Importer
+                            </button>
+                            <button class="btn btn-primary" id="newUserBtn">
+                                <i class="fa-solid fa-user-plus"></i> Nouvel Utilisateur
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Utilisateurs -->
+                    <div class="users-stats">
+                        <div class="card user-stat-card">
+                            <div class="user-stat-icon icon-primary">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div class="user-stat-info">
+                                <span class="user-stat-value">156</span>
+                                <span class="user-stat-label">Utilisateurs Total</span>
+                            </div>
+                        </div>
+                        <div class="card user-stat-card">
+                            <div class="user-stat-icon icon-success">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <div class="user-stat-info">
+                                <span class="user-stat-value">142</span>
+                                <span class="user-stat-label">Actifs</span>
+                            </div>
+                        </div>
+                        <div class="card user-stat-card">
+                            <div class="user-stat-icon icon-warning">
+                                <i class="fa-solid fa-user-clock"></i>
+                            </div>
+                            <div class="user-stat-info">
+                                <span class="user-stat-value">8</span>
+                                <span class="user-stat-label">En attente</span>
+                            </div>
+                        </div>
+                        <div class="card user-stat-card">
+                            <div class="user-stat-icon icon-info">
+                                <i class="fa-solid fa-user-group"></i>
+                            </div>
+                            <div class="user-stat-info">
+                                <span class="user-stat-value">12</span>
+                                <span class="user-stat-label">Équipes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onglets -->
+                    <div class="users-tabs">
+                        <button class="users-tab active" data-tab="users">
+                            <i class="fa-solid fa-user"></i> Utilisateurs
+                        </button>
+                        <button class="users-tab" data-tab="teams">
+                            <i class="fa-solid fa-people-group"></i> Équipes
+                        </button>
+                        <button class="users-tab" data-tab="roles">
+                            <i class="fa-solid fa-shield-halved"></i> Rôles &amp; Permissions
+                        </button>
+                    </div>
+
+                    <!-- Liste Utilisateurs -->
+                    <div class="users-panel active" id="usersPanel">
+                        <div class="filters-bar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text"
+                                       placeholder="Rechercher un utilisateur..."
+                                       id="userSearch" />
+                            </div>
+                            <div class="filter-group">
+                                <select class="filter-select" id="filterRole">
+                                    <option value="">Tous les rôles</option>
+                                    <option value="admin">Administrateur</option>
+                                    <option value="manager">Chef de Projet</option>
+                                    <option value="engineer">Ingénieur</option>
+                                    <option value="technician">Technicien</option>
+                                    <option value="viewer">Observateur</option>
+                                </select>
+                                <select class="filter-select" id="filterTeam">
+                                    <option value="">Toutes les équipes</option>
+                                    <option value="infrastructure">Infrastructure</option>
+                                    <option value="batiment">Bâtiment</option>
+                                    <option value="hydraulique">Hydraulique</option>
+                                    <option value="energie">Énergie</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="users-grid" id="usersGrid">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+
+                    <!-- Équipes Panel -->
+                    <div class="users-panel hidden" id="teamsPanel">
+                        <div class="teams-grid" id="teamsGrid">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+
+                    <!-- Rôles Panel -->
+                    <div class="users-panel hidden" id="rolesPanel">
+                        <div class="roles-container">
+                            <div class="roles-list" id="rolesList">
+                                <!-- Rempli par JS -->
+                            </div>
+                            <div class="permissions-editor" id="permissionsEditor">
+                                <h3>Sélectionnez un rôle pour modifier ses permissions</h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: PARAMÈTRES -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-parametres">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Paramètres</h2>
+                            <p class="page-subtitle">
+                                Configurez l'application selon vos besoins
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="settings-layout">
+                        <!-- Menu Paramètres -->
+                        <nav class="settings-nav">
+                            <a href="#"
+                               class="settings-nav-item active"
+                               data-setting="general">
+                                <i class="fa-solid fa-sliders"></i>
+                                <span>Général</span>
+                            </a>
+                            <a href="#" class="settings-nav-item" data-setting="company">
+                                <i class="fa-solid fa-building"></i>
+                                <span>Entreprise</span>
+                            </a>
+                            <a href="#"
+                               class="settings-nav-item"
+                               data-setting="notifications">
+                                <i class="fa-solid fa-bell"></i>
+                                <span>Notifications</span>
+                            </a>
+                            <a href="#" class="settings-nav-item" data-setting="security">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span>Sécurité</span>
+                            </a>
+                            <a href="#"
+                               class="settings-nav-item"
+                               data-setting="integrations">
+                                <i class="fa-solid fa-plug"></i>
+                                <span>Intégrations</span>
+                            </a>
+                            <a href="#" class="settings-nav-item" data-setting="appearance">
+                                <i class="fa-solid fa-palette"></i>
+                                <span>Apparence</span>
+                            </a>
+                            <a href="#" class="settings-nav-item" data-setting="data">
+                                <i class="fa-solid fa-database"></i>
+                                <span>Données</span>
+                            </a>
+                        </nav>
+
+                        <!-- Contenu Paramètres -->
+                        <div class="settings-content">
+                            <!-- Général -->
+                            <div class="settings-panel active" id="setting-general">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">
+                                        Préférences Générales
+                                    </h3>
+                                    <div class="settings-form">
+                                        <div class="form-group">
+                                            <label class="form-label">Langue</label>
+                                            <select class="form-select">
+                                                <option value="fr" selected>Français</option>
+                                                <option value="en">English</option>
+                                                <option value="ar">العربية</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Fuseau horaire</label>
+                                            <select class="form-select">
+                                                <option value="Europe/Paris" selected>
+                                                    Europe/Paris (UTC+1)
+                                                </option>
+                                                <option value="Africa/Casablanca">
+                                                    Africa/Casablanca (UTC+0)
+                                                </option>
+                                                <option value="Africa/Algiers">
+                                                    Africa/Algiers (UTC+1)
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Format de date</label>
+                                            <select class="form-select">
+                                                <option value="dd/mm/yyyy" selected>
+                                                    DD/MM/YYYY
+                                                </option>
+                                                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                                                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Devise</label>
+                                            <select class="form-select">
+                                                <option value="EUR" selected>Euro (€)</option>
+                                                <option value="USD">Dollar ($)</option>
+                                                <option value="MAD">Dirham (DH)</option>
+                                                <option value="DZD">Dinar (DA)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Tableau de Bord</h3>
+                                    <div class="settings-toggles">
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Afficher les KPIs</span>
+                                                <span class="toggle-desc">
+                                                    Cartes de statistiques en haut du tableau de
+                                                    bord
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Graphiques animés</span>
+                                                <span class="toggle-desc">
+                                                    Animations lors du chargement des graphiques
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">
+                                                    Actualisation automatique
+                                                </span>
+                                                <span class="toggle-desc">
+                                                    Mise à jour des données toutes les 5 minutes
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Entreprise -->
+                            <div class="settings-panel hidden" id="setting-company">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">
+                                        Informations de l'Entreprise
+                                    </h3>
+                                    <div class="settings-form">
+                                        <div class="form-group">
+                                            <label class="form-label">Nom de l'entreprise</label>
+                                            <input type="text"
+                                                   class="form-input"
+                                                   value="Ingé-Projets SARL" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Numéro SIRET</label>
+                                            <input type="text"
+                                                   class="form-input"
+                                                   value="123 456 789 00012" />
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="form-label">Téléphone</label>
+                                                <input type="tel"
+                                                       class="form-input"
+                                                       value="+33 1 23 45 67 89" />
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Email</label>
+                                                <input type="email"
+                                                       class="form-input"
+                                                       value="contact@@inge-projets.fr" />
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Adresse</label>
+                                            <textarea class="form-textarea" rows="3">123 Avenue des Travaux Publics
+75001 Paris, France</textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">Logo de l'entreprise</label>
+                                            <div class="file-upload">
+                                                <div class="file-preview">
+                                                    <img src="~/images/logo.png" alt="Logo" />
+                                                </div>
+                                                <button class="btn btn-outline">
+                                                    Changer le logo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notifications -->
+                            <div class="settings-panel hidden" id="setting-notifications">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">
+                                        Préférences de Notifications
+                                    </h3>
+                                    <div class="settings-toggles">
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">
+                                                    Notifications par email
+                                                </span>
+                                                <span class="toggle-desc">
+                                                    Recevoir les alertes importantes par email
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Notifications push</span>
+                                                <span class="toggle-desc">
+                                                    Alertes en temps réel sur le navigateur
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Alertes budget</span>
+                                                <span class="toggle-desc">
+                                                    Notification en cas de dépassement budgétaire
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Rappels de tâches</span>
+                                                <span class="toggle-desc">
+                                                    Rappels avant les échéances
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" checked />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="toggle-item">
+                                            <div class="toggle-info">
+                                                <span class="toggle-label">Rapport hebdomadaire</span>
+                                                <span class="toggle-desc">
+                                                    Résumé envoyé chaque lundi
+                                                </span>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" />
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sécurité -->
+                            <div class="settings-panel hidden" id="setting-security">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Sécurité du Compte</h3>
+                                    <div class="settings-form">
+                                        <div class="form-group">
+                                            <label class="form-label">Mot de passe actuel</label>
+                                            <input type="password"
+                                                   class="form-input"
+                                                   placeholder="••••••••" />
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="form-label">Nouveau mot de passe</label>
+                                                <input type="password"
+                                                       class="form-input"
+                                                       placeholder="••••••••" />
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Confirmer</label>
+                                                <input type="password"
+                                                       class="form-input"
+                                                       placeholder="••••••••" />
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary">
+                                            Changer le mot de passe
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">
+                                        Authentification à deux facteurs
+                                    </h3>
+                                    <div class="toggle-item">
+                                        <div class="toggle-info">
+                                            <span class="toggle-label">Activer 2FA</span>
+                                            <span class="toggle-desc">
+                                                Ajouter une couche de sécurité supplémentaire
+                                            </span>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Sessions Actives</h3>
+                                    <div class="sessions-list">
+                                        <div class="session-item session-current">
+                                            <div class="session-icon">
+                                                <i class="fa-solid fa-desktop"></i>
+                                            </div>
+                                            <div class="session-info">
+                                                <span class="session-device">
+                                                    Windows 11 - Chrome
+                                                </span>
+                                                <span class="session-location">
+                                                    Paris, France • Session actuelle
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="session-item">
+                                            <div class="session-icon">
+                                                <i class="fa-solid fa-mobile"></i>
+                                            </div>
+                                            <div class="session-info">
+                                                <span class="session-device">iPhone 15 - Safari</span>
+                                                <span class="session-location">
+                                                    Paris, France • Il y a 2h
+                                                </span>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline btn-danger">
+                                                Déconnecter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Intégrations -->
+                            <div class="settings-panel hidden" id="setting-integrations">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">
+                                        Intégrations Disponibles
+                                    </h3>
+                                    <div class="integrations-grid">
+                                        <div class="integration-card integration-connected">
+                                            <div class="integration-logo">
+                                                <i class="fa-brands fa-google"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">Google Calendar</span>
+                                                <span class="integration-status status-connected">Connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline">
+                                                Configurer
+                                            </button>
+                                        </div>
+                                        <div class="integration-card integration-connected">
+                                            <div class="integration-logo">
+                                                <i class="fa-brands fa-microsoft"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">Microsoft 365</span>
+                                                <span class="integration-status status-connected">Connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-outline">
+                                                Configurer
+                                            </button>
+                                        </div>
+                                        <div class="integration-card">
+                                            <div class="integration-logo">
+                                                <i class="fa-brands fa-slack"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">Slack</span>
+                                                <span class="integration-status">Non connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-primary">
+                                                Connecter
+                                            </button>
+                                        </div>
+                                        <div class="integration-card">
+                                            <div class="integration-logo">
+                                                <i class="fa-solid fa-file-invoice"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">
+                                                    Sage Comptabilité
+                                                </span>
+                                                <span class="integration-status">Non connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-primary">
+                                                Connecter
+                                            </button>
+                                        </div>
+                                        <div class="integration-card">
+                                            <div class="integration-logo">
+                                                <i class="fa-solid fa-map-location-dot"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">Géolocalisation</span>
+                                                <span class="integration-status">Non connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-primary">
+                                                Connecter
+                                            </button>
+                                        </div>
+                                        <div class="integration-card">
+                                            <div class="integration-logo">
+                                                <i class="fa-solid fa-cloud"></i>
+                                            </div>
+                                            <div class="integration-info">
+                                                <span class="integration-name">Stockage Cloud</span>
+                                                <span class="integration-status">Non connecté</span>
+                                            </div>
+                                            <button class="btn btn-sm btn-primary">
+                                                Connecter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Apparence -->
+                            <div class="settings-panel hidden" id="setting-appearance">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Thème</h3>
+                                    <div class="theme-selector">
+                                        <label class="theme-option active">
+                                            <input type="radio"
+                                                   name="theme"
+                                                   value="light"
+                                                   checked />
+                                            <div class="theme-preview theme-light">
+                                                <div class="theme-preview-sidebar"></div>
+                                                <div class="theme-preview-content"></div>
+                                            </div>
+                                            <span>Clair</span>
+                                        </label>
+                                        <label class="theme-option">
+                                            <input type="radio" name="theme" value="dark" />
+                                            <div class="theme-preview theme-dark">
+                                                <div class="theme-preview-sidebar"></div>
+                                                <div class="theme-preview-content"></div>
+                                            </div>
+                                            <span>Sombre</span>
+                                        </label>
+                                        <label class="theme-option">
+                                            <input type="radio" name="theme" value="auto" />
+                                            <div class="theme-preview theme-auto">
+                                                <div class="theme-preview-sidebar"></div>
+                                                <div class="theme-preview-content"></div>
+                                            </div>
+                                            <span>Automatique</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Couleur d'accent</h3>
+                                    <div class="color-selector">
+                                        <label class="color-option active"
+                                               style="--color: #e50908">
+                                            <input type="radio"
+                                                   name="accent"
+                                                   value="red"
+                                                   checked />
+                                        </label>
+                                        <label class="color-option" style="--color: #3b82f6">
+                                            <input type="radio" name="accent" value="blue" />
+                                        </label>
+                                        <label class="color-option" style="--color: #10b981">
+                                            <input type="radio" name="accent" value="green" />
+                                        </label>
+                                        <label class="color-option" style="--color: #8b5cf6">
+                                            <input type="radio"
+                                                   name="accent"
+                                                   value="purple" />
+                                        </label>
+                                        <label class="color-option" style="--color: #f59e0b">
+                                            <input type="radio"
+                                                   name="accent"
+                                                   value="orange" />
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Densité d'affichage</h3>
+                                    <div class="density-selector">
+                                        <label class="density-option">
+                                            <input type="radio"
+                                                   name="density"
+                                                   value="compact" />
+                                            <span>Compact</span>
+                                        </label>
+                                        <label class="density-option active">
+                                            <input type="radio"
+                                                   name="density"
+                                                   value="normal"
+                                                   checked />
+                                            <span>Normal</span>
+                                        </label>
+                                        <label class="density-option">
+                                            <input type="radio"
+                                                   name="density"
+                                                   value="comfortable" />
+                                            <span>Confortable</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Données -->
+                            <div class="settings-panel hidden" id="setting-data">
+                                <div class="settings-section">
+                                    <h3 class="settings-section-title">Sauvegarde &amp; Export</h3>
+                                    <div class="data-actions">
+                                        <div class="data-action-card">
+                                            <i class="fa-solid fa-download"></i>
+                                            <h4>Exporter les données</h4>
+                                            <p>
+                                                Téléchargez toutes vos données au format JSON ou CSV
+                                            </p>
+                                            <button class="btn btn-outline">Exporter</button>
+                                        </div>
+                                        <div class="data-action-card">
+                                            <i class="fa-solid fa-upload"></i>
+                                            <h4>Importer des données</h4>
+                                            <p>Importez des données depuis un fichier externe</p>
+                                            <button class="btn btn-outline">Importer</button>
+                                        </div>
+                                        <div class="data-action-card">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>
+                                            <h4>Sauvegardes automatiques</h4>
+                                            <p>Dernière sauvegarde : il y a 2 heures</p>
+                                            <button class="btn btn-outline">Configurer</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="settings-section settings-danger">
+                                    <h3 class="settings-section-title">Zone Dangereuse</h3>
+                                    <div class="danger-zone">
+                                        <div class="danger-item">
+                                            <div class="danger-info">
+                                                <span class="danger-label">
+                                                    Réinitialiser les paramètres
+                                                </span>
+                                                <span class="danger-desc">
+                                                    Remettre tous les paramètres par défaut
+                                                </span>
+                                            </div>
+                                            <button class="btn btn-outline btn-danger">
+                                                Réinitialiser
+                                            </button>
+                                        </div>
+                                        <div class="danger-item">
+                                            <div class="danger-info">
+                                                <span class="danger-label">
+                                                    Supprimer toutes les données
+                                                </span>
+                                                <span class="danger-desc">
+                                                    Cette action est irréversible
+                                                </span>
+                                            </div>
+                                            <button class="btn btn-danger">Supprimer</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bouton Sauvegarder -->
+                    <div class="settings-footer">
+                        <button class="btn btn-outline" id="resetSettingsBtn">
+                            Annuler les modifications
+                        </button>
+                        <button class="btn btn-primary" id="saveSettingsBtn">
+                            <i class="fa-solid fa-check"></i> Sauvegarder
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: AIDE & SUPPORT -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-support">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Aide &amp; Support</h2>
+                            <p class="page-subtitle">
+                                Trouvez des réponses ou contactez notre équipe
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Recherche d'aide -->
+                    <div class="support-search-container">
+                        <div class="support-search">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text"
+                                   placeholder="Comment pouvons-nous vous aider ?"
+                                   id="supportSearch" />
+                        </div>
+                    </div>
+
+                    <!-- Catégories d'aide -->
+                    <div class="help-categories">
+                        <div class="card help-category" data-category="getting-started">
+                            <div class="help-category-icon icon-primary">
+                                <i class="fa-solid fa-rocket"></i>
+                            </div>
+                            <h3 class="help-category-title">Démarrage</h3>
+                            <p class="help-category-desc">
+                                Premiers pas avec la plateforme
+                            </p>
+                        </div>
+                        <div class="card help-category" data-category="projects">
+                            <div class="help-category-icon icon-success">
+                                <i class="fa-solid fa-folder-open"></i>
+                            </div>
+                            <h3 class="help-category-title">Projets</h3>
+                            <p class="help-category-desc">Gestion des chantiers</p>
+                        </div>
+                        <div class="card help-category" data-category="planning">
+                            <div class="help-category-icon icon-warning">
+                                <i class="fa-solid fa-calendar"></i>
+                            </div>
+                            <h3 class="help-category-title">Planning</h3>
+                            <p class="help-category-desc">Calendrier et tâches</p>
+                        </div>
+                        <div class="card help-category" data-category="budget">
+                            <div class="help-category-icon icon-info">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+                            <h3 class="help-category-title">Budget</h3>
+                            <p class="help-category-desc">Gestion financière</p>
+                        </div>
+                        <div class="card help-category" data-category="reports">
+                            <div class="help-category-icon icon-purple">
+                                <i class="fa-solid fa-chart-bar"></i>
+                            </div>
+                            <h3 class="help-category-title">Rapports</h3>
+                            <p class="help-category-desc">Analytics et exports</p>
+                        </div>
+                        <div class="card help-category" data-category="account">
+                            <div class="help-category-icon icon-danger">
+                                <i class="fa-solid fa-user-gear"></i>
+                            </div>
+                            <h3 class="help-category-title">Compte</h3>
+                            <p class="help-category-desc">Profil et paramètres</p>
+                        </div>
+                    </div>
+
+                    <!-- FAQ -->
+                    <div class="card faq-card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-circle-question"></i> Questions
+                                Fréquentes
+                            </h2>
+                        </div>
+                        <div class="faq-list">
+                            <div class="faq-item">
+                                <button class="faq-question">
+                                    <span>Comment créer un nouveau projet ?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <div class="faq-answer">
+                                    <p>
+                                        Pour créer un nouveau projet, allez dans la section
+                                        "Projets" et cliquez sur le bouton "Nouveau Projet".
+                                        Remplissez les informations requises (nom, type, budget,
+                                        dates) puis validez. Le projet apparaîtra dans votre liste
+                                        et sera accessible à votre équipe.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="faq-item">
+                                <button class="faq-question">
+                                    <span>Comment ajouter des membres à une équipe ?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <div class="faq-answer">
+                                    <p>
+                                        Rendez-vous dans "Utilisateurs" &gt; "Équipes", sélectionnez
+                                        l'équipe souhaitée et cliquez sur "Ajouter un membre".
+                                        Vous pouvez inviter un utilisateur existant ou créer un
+                                        nouveau compte.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="faq-item">
+                                <button class="faq-question">
+                                    <span>Comment exporter un rapport budgétaire ?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <div class="faq-answer">
+                                    <p>
+                                        Dans la section "Budgets", cliquez sur "Exporter Excel"
+                                        pour télécharger un fichier complet. Vous pouvez aussi
+                                        aller dans "Rapports" et générer un rapport financier
+                                        personnalisé avec les filtres de votre choix.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="faq-item">
+                                <button class="faq-question">
+                                    <span>Comment configurer les alertes de dépassement ?</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <div class="faq-answer">
+                                    <p>
+                                        Allez dans "Paramètres" &gt; "Notifications" et activez
+                                        "Alertes budget". Vous pouvez définir un seuil
+                                        personnalisé (ex: alerte à 80% du budget) pour chaque
+                                        projet dans ses paramètres.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="faq-item">
+                                <button class="faq-question">
+                                    <span>
+                                        Comment synchroniser avec mon calendrier externe ?
+                                    </span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </button>
+                                <div class="faq-answer">
+                                    <p>
+                                        Dans "Paramètres" &gt; "Intégrations", connectez votre compte
+                                        Google Calendar ou Microsoft 365. Une fois connecté, vos
+                                        tâches et échéances seront automatiquement synchronisées.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Support Contact -->
+                    <div class="support-cards">
+                        <div class="card support-contact-card">
+                            <div class="support-contact-icon">
+                                <i class="fa-solid fa-headset"></i>
+                            </div>
+                            <h3>Support Technique</h3>
+                            <p>Notre équipe est disponible 24/7 pour vous aider</p>
+                            <div class="support-contact-info">
+                                <span>
+                                    <i class="fa-solid fa-phone"></i> +33 1 23 45 67 89
+                                </span>
+                                <span>
+                                    <i class="fa-solid fa-envelope"></i>
+                                    support@@inge-projets.fr
+                                </span>
+                            </div>
+                            <button class="btn btn-primary" id="newTicketBtn">
+                                <i class="fa-solid fa-ticket"></i> Créer un ticket
+                            </button>
+                        </div>
+                        <div class="card support-contact-card">
+                            <div class="support-contact-icon icon-success">
+                                <i class="fa-solid fa-comments"></i>
+                            </div>
+                            <h3>Chat en Direct</h3>
+                            <p>Discutez avec un conseiller en temps réel</p>
+                            <div class="chat-status online">
+                                <span class="status-dot"></span>
+                                <span>Disponible maintenant</span>
+                            </div>
+                            <button class="btn btn-success" id="startChatBtn">
+                                <i class="fa-solid fa-message"></i> Démarrer le chat
+                            </button>
+                        </div>
+                        <div class="card support-contact-card">
+                            <div class="support-contact-icon icon-warning">
+                                <i class="fa-solid fa-book"></i>
+                            </div>
+                            <h3>Documentation</h3>
+                            <p>Guides détaillés et tutoriels vidéo</p>
+                            <div class="doc-stats">
+                                <span>
+                                    <i class="fa-solid fa-file-lines"></i> 150+ articles
+                                </span>
+                                <span><i class="fa-solid fa-video"></i> 45 vidéos</span>
+                            </div>
+                            <button class="btn btn-outline" id="openDocsBtn">
+                                <i class="fa-solid fa-external-link"></i> Accéder
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tickets récents -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fa-solid fa-ticket"></i> Mes Tickets
+                            </h2>
+                            <a href="#" class="card-action">
+                                Voir tout <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="tickets-list" id="ticketsList">
+                            <div class="ticket-item">
+                                <div class="ticket-status status-open"></div>
+                                <div class="ticket-info">
+                                    <span class="ticket-id">#TK-2024-0142</span>
+                                    <span class="ticket-title">Problème d'export PDF</span>
+                                    <span class="ticket-date">Il y a 2 heures</span>
+                                </div>
+                                <span class="ticket-priority priority-high">Haute</span>
+                            </div>
+                            <div class="ticket-item">
+                                <div class="ticket-status status-progress"></div>
+                                <div class="ticket-info">
+                                    <span class="ticket-id">#TK-2024-0138</span>
+                                    <span class="ticket-title">Synchronisation calendrier</span>
+                                    <span class="ticket-date">Hier</span>
+                                </div>
+                                <span class="ticket-priority priority-medium">Moyenne</span>
+                            </div>
+                            <div class="ticket-item">
+                                <div class="ticket-status status-resolved"></div>
+                                <div class="ticket-info">
+                                    <span class="ticket-id">#TK-2024-0125</span>
+                                    <span class="ticket-title">Accès utilisateur</span>
+                                    <span class="ticket-date">Il y a 3 jours</span>
+                                </div>
+                                <span class="ticket-priority priority-low">Basse</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - IngeProjets - <a asp-area="" asp-page="/Privacy">Privacy</a>
+    <!-- MODALES -->
+    <!-- Modal Nouveau Projet -->
+    <div class="modal-overlay" id="projectModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-folder-plus"></i> Nouveau Projet
+                </h2>
+                <button class="modal-close" id="closeProjectModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="projectForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nom du projet *</label>
+                            <input type="text"
+                                   class="form-input"
+                                   id="projectName"
+                                   required
+                                   placeholder="Ex: Construction Pont A7" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Code projet</label>
+                            <input type="text"
+                                   class="form-input"
+                                   id="projectCode"
+                                   placeholder="Ex: PRJ-2026-001" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea"
+                                  id="projectDesc"
+                                  rows="3"
+                                  placeholder="Description détaillée du projet..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Type de projet *</label>
+                            <select class="form-select" id="projectType" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="Route">Routes &amp; Autoroutes</option>
+                                <option value="Pont">Ponts &amp; Viaducs</option>
+                                <option value="Batiment">Bâtiments Publics</option>
+                                <option value="Assainissement">Assainissement</option>
+                                <option value="Energie">Énergie &amp; Réseaux</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priorité</label>
+                            <select class="form-select" id="projectPriority">
+                                <option value="Moyenne">Moyenne</option>
+                                <option value="Basse">Basse</option>
+                                <option value="Haute">Haute</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date de début *</label>
+                            <input type="date"
+                                   class="form-input"
+                                   id="projectStartDate"
+                                   required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date de fin prévue *</label>
+                            <input type="date"
+                                   class="form-input"
+                                   id="projectEndDate"
+                                   required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Budget alloué (€) *</label>
+                            <input type="number"
+                                   class="form-input"
+                                   id="projectBudget"
+                                   required
+                                   placeholder="Ex: 1500000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Chef de projet</label>
+                            <select class="form-select" id="projectManager">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Wilaya</label>
+                            <select class="form-select" id="projectWilaya">
+                                <option value="">Sélectionner une wilaya...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Daïra</label>
+                            <select class="form-select" id="projectDaira" disabled>
+                                <option value="">Sélectionner une daïra...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Commune</label>
+                        <select class="form-select" id="projectCommune" disabled>
+                            <option value="">Sélectionner une commune...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Maître de l'ouvrage</label>
+                            <input type="text"
+                                   class="form-input"
+                                   id="projectClient"
+                                   placeholder="Ex: Commune de Paris" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Proposition des prix (€)</label>
+                            <input type="number"
+                                   class="form-input"
+                                   id="projectPriceProposal"
+                                   placeholder="Ex: 2000000" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelProjectBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveProjectBtn">
+                    <i class="fa-solid fa-check"></i> Créer le projet
+                </button>
+            </div>
         </div>
-    </footer>
+    </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- Modal Nouvelle Tâche -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-list-check"></i> Nouvelle Tâche
+                </h2>
+                <button class="modal-close" id="closeTaskModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm">
+                    <div class="form-group">
+                        <label class="form-label">Titre de la tâche *</label>
+                        <input type="text"
+                               class="form-input"
+                               id="taskTitle"
+                               required
+                               placeholder="Ex: Préparation du terrain" />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Projet associé *</label>
+                            <select class="form-select" id="taskProject" required>
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priorité</label>
+                            <select class="form-select" id="taskPriority">
+                                <option value="Moyenne">Moyenne</option>
+                                <option value="Basse">Basse</option>
+                                <option value="Haute">Haute</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date de début *</label>
+                            <input type="date" class="form-input" id="taskStartDate" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date d'échéance *</label>
+                            <input type="date"
+                                   class="form-input"
+                                   id="taskDueDate"
+                                   required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Assigné à</label>
+                            <select class="form-select" id="taskAssignee">
+                                <option value="">Non assigné</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Progression (%)</label>
+                            <div class="form-input-group">
+                                <input type="range" class="form-range" id="taskProgression" min="0" max="100" value="0" />
+                                <span class="form-range-value" id="taskProgressionValue">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea"
+                                  id="taskDesc"
+                                  rows="3"
+                                  placeholder="Détails de la tâche..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelTaskBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveTaskBtn">
+                    <i class="fa-solid fa-check"></i> Créer la tâche
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifier Tâche -->
+    <div class="modal-overlay" id="editTaskModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-pen-to-square"></i> Modifier la Tâche
+                </h2>
+                <button class="modal-close" id="closeEditTaskModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editTaskForm">
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2">
+                            <label class="form-label">Titre *</label>
+                            <input type="text" class="form-input" id="editTaskTitle" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Projet</label>
+                            <select class="form-select" id="editTaskProject" disabled>
+                                <option value="">—</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Priorité</label>
+                            <select class="form-select" id="editTaskPriority">
+                                <option value="Moyenne">Moyenne</option>
+                                <option value="Basse">Basse</option>
+                                <option value="Haute">Haute</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" id="editTaskStatus">
+                                <option value="AFaire">À faire</option>
+                                <option value="EnCours">En cours</option>
+                                <option value="EnRevue">En revue</option>
+                                <option value="Terminee">Terminée</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date de début</label>
+                            <input type="date" class="form-input" id="editTaskStartDate" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date d'échéance *</label>
+                            <input type="date" class="form-input" id="editTaskDueDate" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Assigné à</label>
+                            <select class="form-select" id="editTaskAssignee">
+                                <option value="">Non assigné</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Progression (%)</label>
+                            <div class="form-input-group">
+                                <input type="range" class="form-range" id="editTaskProgression" min="0" max="100" value="0" />
+                                <span class="form-range-value" id="editTaskProgressionValue">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-textarea" id="editTaskDesc" rows="3" placeholder="Détails de la tâche..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelEditTaskBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveEditTaskBtn">
+                    <i class="fa-solid fa-check"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmation suppression tâche -->
+    <div class="modal-overlay" id="deleteTaskConfirmModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--color-red)"></i> Supprimer la tâche
+                </h2>
+                <button class="modal-close" id="closeDeleteTaskModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer la tâche <strong id="deleteTaskName"></strong> ?</p>
+                <p style="color:var(--text-tertiary);font-size:var(--font-sm)">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelDeleteTaskBtn">Annuler</button>
+                <button class="btn btn-danger" id="confirmDeleteTaskBtn">
+                    <i class="fa-solid fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Voir Projet -->
+    <div class="modal-overlay" id="viewProjectModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-eye"></i> Détails du Projet
+                </h2>
+                <button class="modal-close" id="closeViewProjectModal">&times;</button>
+            </div>
+            <div class="modal-body" id="viewProjectBody">
+                <!-- Rempli par JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifier Projet -->
+    <div class="modal-overlay" id="editProjectModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-pen-to-square"></i> Modifier le Projet
+                </h2>
+                <button class="modal-close" id="closeEditProjectModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editProjectForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nom du projet *</label>
+                            <input type="text" class="form-input" id="editProjectName" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Code projet</label>
+                            <input type="text" class="form-input" id="editProjectCode" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Type de projet *</label>
+                            <select class="form-select" id="editProjectType" required>
+                                <option value="Route">Routes &amp; Autoroutes</option>
+                                <option value="Pont">Ponts &amp; Viaducs</option>
+                                <option value="Batiment">Bâtiments Publics</option>
+                                <option value="Assainissement">Assainissement</option>
+                                <option value="Energie">Énergie &amp; Réseaux</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priorité</label>
+                            <select class="form-select" id="editProjectPriority">
+                                <option value="Basse">Basse</option>
+                                <option value="Moyenne">Moyenne</option>
+                                <option value="Haute">Haute</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" id="editProjectStatus">
+                                <option value="EnPlanification">En planification</option>
+                                <option value="EnCours">En cours</option>
+                                <option value="EnPause">En pause</option>
+                                <option value="EnRetard">En retard</option>
+                                <option value="Termine">Terminé</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Budget alloué (€) *</label>
+                            <input type="number" class="form-input" id="editProjectBudget" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date de début *</label>
+                            <input type="date" class="form-input" id="editProjectStartDate" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date de fin prévue *</label>
+                            <input type="date" class="form-input" id="editProjectEndDate" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Wilaya</label>
+                            <select class="form-select" id="editProjectWilaya">
+                                <option value="">Sélectionner une wilaya...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Daïra</label>
+                            <select class="form-select" id="editProjectDaira" disabled>
+                                <option value="">Sélectionner une daïra...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Commune</label>
+                        <select class="form-select" id="editProjectCommune" disabled>
+                            <option value="">Sélectionner une commune...</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelEditProjectBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveEditProjectBtn">
+                    <i class="fa-solid fa-check"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmation Suppression -->
+    <div class="modal-overlay" id="deleteConfirmModal">
+        <div class="modal modal-sm">
+            <div class="modal-header modal-header--danger">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Confirmer la suppression
+                </h2>
+                <button class="modal-close" id="closeDeleteConfirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="delete-confirm-content">
+                    <div class="delete-confirm-icon">
+                        <i class="fa-solid fa-trash"></i>
+                    </div>
+                    <p>Êtes-vous sûr de vouloir supprimer le projet :</p>
+                    <p class="delete-confirm-name" id="deleteProjectName"></p>
+                    <p class="delete-confirm-warning">
+                        <i class="fa-solid fa-exclamation-circle"></i>
+                        Cette action est irréversible. Toutes les données associées seront perdues.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelDeleteBtn">Annuler</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fa-solid fa-trash"></i> Supprimer définitivement
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Upload Document -->
+    <div class="modal-overlay" id="uploadDocModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Ajouter un document
+                </h2>
+                <button class="modal-close" id="closeUploadDocModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadDocForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label class="form-label">Fichier *</label>
+                        <div class="file-drop-zone" id="fileDropZone">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <p>Glissez un fichier ici ou <strong>cliquez pour parcourir</strong></p>
+                            <small>PDF, Word, Excel, Images, DWG — max 50 Mo</small>
+                            <input type="file" id="docFileInput" style="display:none"
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.dwg,.dxf,.zip,.rar,.txt,.csv" />
+                        </div>
+                        <div class="file-selected-name" id="fileSelectedName" style="display:none">
+                            <i class="fa-solid fa-file"></i>
+                            <span id="fileSelectedText"></span>
+                            <button type="button" class="btn btn-sm btn-outline" id="fileClearBtn">&times;</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelUploadDocBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveUploadDocBtn" disabled>
+                    <i class="fa-solid fa-upload"></i> Envoyer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmation suppression document -->
+    <div class="modal-overlay" id="deleteDocConfirmModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--color-red)"></i> Supprimer le document
+                </h2>
+                <button class="modal-close" id="closeDeleteDocModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le document <strong id="deleteDocName"></strong> ?</p>
+                <p style="color:var(--text-tertiary);font-size:var(--font-sm)">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelDeleteDocBtn">Annuler</button>
+                <button class="btn btn-danger" id="confirmDeleteDocBtn">
+                    <i class="fa-solid fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
