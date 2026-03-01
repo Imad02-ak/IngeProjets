@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+Ôªøusing System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IngeProjets.Data.Models;
@@ -7,7 +7,7 @@ public class Tache
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "Le titre de la t‚che est requis.")]
+    [Required(ErrorMessage = "Le titre de la t√¢che est requis.")]
     [StringLength(200, MinimumLength = 3)]
     [Display(Name = "Titre")]
     public string Titre { get; set; } = default!;
@@ -15,30 +15,45 @@ public class Tache
     [StringLength(2000)]
     public string? Description { get; set; }
 
-    [Display(Name = "PrioritÈ")]
+    [Display(Name = "Priorit√©")]
     public Priorite Priorite { get; set; } = Priorite.Moyenne;
 
     [Display(Name = "Statut")]
     public StatutTache Statut { get; set; } = StatutTache.AFaire;
 
     [DataType(DataType.Date)]
-    [Display(Name = "Date de dÈbut")]
+    [Display(Name = "Date de d√©but")]
     public DateTime? DateDebut { get; set; }
 
-    [Required(ErrorMessage = "La date d'ÈchÈance est requise.")]
+    [Required(ErrorMessage = "La date d'√©ch√©ance est requise.")]
     [DataType(DataType.Date)]
-    [Display(Name = "Date d'ÈchÈance")]
+    [Display(Name = "Date d'√©ch√©ance")]
     public DateTime DateEcheance { get; set; }
 
     [DataType(DataType.Date)]
-    [Display(Name = "Date de fin rÈelle")]
+    [Display(Name = "Date de fin r√©elle")]
     public DateTime? DateFinReelle { get; set; }
 
     [Range(0, 100)]
     [Display(Name = "Progression (%)")]
     public int Progression { get; set; }
 
+    [StringLength(200)]
+    [Display(Name = "Phase")]
+    public string? Phase { get; set; }
+
+    [StringLength(2000)]
+    [Display(Name = "Commentaire")]
+    public string? Commentaire { get; set; }
+
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+
+    [Display(Name = "Archiv√©")]
+    public bool EstArchive { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Date d'archivage")]
+    public DateTime? DateArchivage { get; set; }
 
     // Navigation
     [Required]
@@ -48,16 +63,24 @@ public class Tache
     [ForeignKey(nameof(ProjetId))]
     public Projet Projet { get; set; } = default!;
 
-    [Display(Name = "AssignÈ ‡")]
+    [Display(Name = "Assign√© √†")]
     public string? AssigneAId { get; set; }
 
     [ForeignKey(nameof(AssigneAId))]
     public ApplicationUser? AssigneA { get; set; }
+
+    [Display(Name = "D√©pendance (Fin ‚Üí D√©but)")]
+    public int? DependanceId { get; set; }
+
+    [ForeignKey(nameof(DependanceId))]
+    public Tache? Dependance { get; set; }
+
+    public ICollection<Tache> TachesDependantes { get; set; } = [];
 }
 
 public enum StatutTache
 {
-    [Display(Name = "¿ faire")]
+    [Display(Name = "√Ä faire")]
     AFaire,
 
     [Display(Name = "En cours")]
@@ -66,6 +89,6 @@ public enum StatutTache
     [Display(Name = "En revue")]
     EnRevue,
 
-    [Display(Name = "TerminÈe")]
+    [Display(Name = "Termin√©e")]
     Terminee
 }

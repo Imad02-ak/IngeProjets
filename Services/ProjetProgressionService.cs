@@ -26,7 +26,7 @@ public sealed class ProjetProgressionService
         if (projet is null) return;
 
         var stats = await _context.Taches
-            .Where(t => t.ProjetId == projetId)
+            .Where(t => t.ProjetId == projetId && !t.EstArchive)
             .GroupBy(t => 1)
             .Select(g => new
             {

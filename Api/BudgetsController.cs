@@ -22,13 +22,14 @@ public class BudgetsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetBudgetOverview(CancellationToken cancellationToken)
     {
-        var budgetTotal = await _context.Projets.SumAsync(p => p.BudgetAlloue, cancellationToken);
+        var budgetTotal = await _context.Projets.Where(p => !p.EstArchive).SumAsync(p => p.BudgetAlloue, cancellationToken);
         var depenses = await _context.TransactionsBudget
             .Where(t => t.Type == TypeTransaction.Depense)
             .SumAsync(t => t.Montant, cancellationToken);
         var restant = budgetTotal - depenses;
 
         var parProjet = await _context.Projets
+            .Where(p => !p.EstArchive)
             .Select(p => new
             {
                 p.Id,

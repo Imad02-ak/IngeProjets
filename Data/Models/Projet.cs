@@ -67,6 +67,13 @@ public class Projet
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
     public DateTime? DateModification { get; set; }
 
+    [Display(Name = "Archivé")]
+    public bool EstArchive { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Date d'archivage")]
+    public DateTime? DateArchivage { get; set; }
+
     // Navigation
     [Display(Name = "Chef de projet")]
     public string? ChefProjetId { get; set; }

@@ -30,7 +30,10 @@ public class TasksController : ControllerBase
             t.Projet.Type.ToString(),
             t.Projet.Statut.ToString(),
             t.AssigneA != null ? t.AssigneA.NomComplet : null,
-            t.AssigneAId);
+            t.AssigneAId,
+            t.Phase,
+            t.Commentaire,
+            t.DependanceId);
 
     private readonly ApplicationDbContext _context;
     private readonly ProjetProgressionService _progressionService;
@@ -44,7 +47,7 @@ public class TasksController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int? projetId, CancellationToken cancellationToken)
     {
-        var query = _context.Taches.AsNoTracking().AsQueryable();
+        var query = _context.Taches.AsNoTracking().Where(t => !t.EstArchive);
 
         if (projetId.HasValue)
             query = query.Where(t => t.ProjetId == projetId.Value);
@@ -94,6 +97,9 @@ public class TasksController : ControllerBase
             Progression = request.Progression,
             ProjetId = request.ProjetId,
             AssigneAId = request.AssigneAId,
+            Phase = request.Phase,
+            Commentaire = request.Commentaire,
+            DependanceId = request.DependanceId,
             DateCreation = DateTime.UtcNow
         };
 
@@ -121,6 +127,8 @@ public class TasksController : ControllerBase
         if (!Enum.TryParse<StatutTache>(request.Statut, true, out var statut))
             return BadRequest("Statut invalide.");
 
+        var oldEcheance = tache.DateEcheance;
+
         tache.Titre = request.Titre;
         tache.Description = request.Description;
         tache.Priorite = priorite;
@@ -129,6 +137,9 @@ public class TasksController : ControllerBase
         tache.DateEcheance = request.DateEcheance;
         tache.Progression = request.Progression;
         tache.AssigneAId = request.AssigneAId;
+        tache.Phase = request.Phase;
+        tache.Commentaire = request.Commentaire;
+        tache.DependanceId = request.DependanceId;
 
         if (statut == StatutTache.Terminee && tache.DateFinReelle is null)
         {
@@ -137,6 +148,16 @@ public class TasksController : ControllerBase
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Cascade delay to dependent tasks (Fin -> Début)
+        if (request.DateEcheance != oldEcheance)
+        {
+            var delay = (request.DateEcheance - oldEcheance).TotalDays;
+            if (delay > 0)
+            {
+                await CascadeDependencyDelayAsync(tache.Id, (int)delay, cancellationToken);
+            }
+        }
 
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
@@ -171,7 +192,7 @@ public class TasksController : ControllerBase
     [HttpGet("gantt")]
     public async Task<IActionResult> GetGanttData([FromQuery] int? projetId, CancellationToken cancellationToken)
     {
-        var projetsQuery = _context.Projets.AsNoTracking().AsQueryable();
+        var projetsQuery = _context.Projets.AsNoTracking().Where(p => !p.EstArchive);
 
         if (projetId.HasValue)
             projetsQuery = projetsQuery.Where(p => p.Id == projetId.Value);
@@ -189,6 +210,7 @@ public class TasksController : ControllerBase
                 p.Localisation,
                 ChefNomComplet = p.ChefProjet != null ? p.ChefProjet.NomComplet : "",
                 Taches = p.Taches
+                    .Where(t => !t.EstArchive)
                     .OrderBy(t => t.DateDebut ?? t.DateEcheance)
                     .Select(t => new
                     {
@@ -199,6 +221,8 @@ public class TasksController : ControllerBase
                         t.Progression,
                         t.Priorite,
                         t.Statut,
+                        t.Phase,
+                        t.DependanceId,
                         t.AssigneAId,
                         AssigneNomComplet = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assigné"
                     })
@@ -208,6 +232,7 @@ public class TasksController : ControllerBase
         var data = new List<object>();
         var links = new List<object>();
         int linkId = 1;
+        var now = DateTime.UtcNow.Date;
 
         foreach (var projet in projets)
         {
@@ -235,12 +260,20 @@ public class TasksController : ControllerBase
                 localisation = projet.Localisation ?? ""
             });
 
-            int? prevTaskId = null;
-
             foreach (var t in projet.Taches)
             {
                 var startDate = t.DateDebut ?? t.DateEcheance.AddDays(-7);
                 var taskDuration = Math.Max(1, (int)(t.DateEcheance - startDate).TotalDays);
+                var isOverdue = t.Statut != StatutTache.Terminee && t.DateEcheance.Date < now;
+                var statusColor = t.Statut switch
+                {
+                    StatutTache.Terminee => "#3b82f6",
+                    StatutTache.EnCours when !isOverdue => "#10b981",
+                    StatutTache.AFaire when !isOverdue => "#f59e0b",
+                    _ when isOverdue => "#e50908",
+                    _ => "#f59e0b"
+                };
+
                 data.Add(new
                 {
                     id = t.Id,
@@ -250,35 +283,117 @@ public class TasksController : ControllerBase
                     progress = t.Progression / 100.0,
                     parent = $"p{projet.Id}",
                     open = true,
-                    color = t.Priorite switch
-                    {
-                        Priorite.Urgente => "#e50908",
-                        Priorite.Haute => "#f59e0b",
-                        Priorite.Moyenne => "#3b82f6",
-                        _ => "#10b981"
-                    },
+                    color = statusColor,
                     priority = t.Priorite.ToString(),
                     statut = t.Statut.ToString(),
+                    phase = t.Phase ?? "",
                     assignee = t.AssigneNomComplet,
                     assigneeId = t.AssigneAId ?? "",
-                    projetId = projet.Id
+                    projetId = projet.Id,
+                    isOverdue,
+                    joursRetard = isOverdue ? (int)(now - t.DateEcheance.Date).TotalDays : 0
                 });
 
-                if (prevTaskId.HasValue)
+                if (t.DependanceId.HasValue)
                 {
                     links.Add(new
                     {
                         id = linkId++,
-                        source = prevTaskId.Value,
+                        source = t.DependanceId.Value,
                         target = t.Id,
                         type = "0"
                     });
                 }
-                prevTaskId = t.Id;
             }
         }
 
         return Ok(new { data, links });
+    }
+
+    /// <summary>Returns tasks that are overdue (past deadline and not completed).</summary>
+    [HttpGet("delayed")]
+    public async Task<IActionResult> GetDelayedTasks(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow.Date;
+        var tasks = await _context.Taches
+            .AsNoTracking()
+            .Where(t => !t.EstArchive && t.Statut != StatutTache.Terminee && t.DateEcheance < now)
+            .OrderBy(t => t.DateEcheance)
+            .Select(t => new
+            {
+                t.Id,
+                t.Titre,
+                t.DateEcheance,
+                t.DateDebut,
+                t.Progression,
+                t.Statut,
+                Projet = t.Projet.Nom,
+                AssigneA = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assigné",
+                JoursRetard = (int)(now - t.DateEcheance).TotalDays
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(tasks);
+    }
+
+    /// <summary>Cascades a delay in days to all tasks that depend on the given task.</summary>
+    private async Task CascadeDependencyDelayAsync(int tacheId, int delayDays, CancellationToken cancellationToken)
+    {
+        var dependants = await _context.Taches
+            .Where(t => t.DependanceId == tacheId && !t.EstArchive && t.Statut != StatutTache.Terminee)
+            .ToListAsync(cancellationToken);
+
+        foreach (var dep in dependants)
+        {
+            if (dep.DateDebut.HasValue)
+                dep.DateDebut = dep.DateDebut.Value.AddDays(delayDays);
+            dep.DateEcheance = dep.DateEcheance.AddDays(delayDays);
+
+            await _context.SaveChangesAsync(cancellationToken);
+            await CascadeDependencyDelayAsync(dep.Id, delayDays, cancellationToken);
+        }
+    }
+
+    /// <summary>Archives a single task.</summary>
+    [HttpPost("{id}/archive")]
+    [Authorize(Policy = "RequireEncadrement")]
+    public async Task<IActionResult> Archive(int id, CancellationToken cancellationToken)
+    {
+        var tache = await _context.Taches.FindAsync([id], cancellationToken);
+        if (tache is null)
+            return NotFound();
+
+        if (tache.EstArchive)
+            return BadRequest("Cette tâche est déjà archivée.");
+
+        tache.EstArchive = true;
+        tache.DateArchivage = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
+
+        return Ok(new { tache.Id, tache.Titre, Message = "Tâche archivée avec succès" });
+    }
+
+    /// <summary>Restores an archived task.</summary>
+    [HttpPost("{id}/restore")]
+    [Authorize(Policy = "RequireEncadrement")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var tache = await _context.Taches.FindAsync([id], cancellationToken);
+        if (tache is null)
+            return NotFound();
+
+        if (!tache.EstArchive)
+            return BadRequest("Cette tâche n'est pas archivée.");
+
+        tache.EstArchive = false;
+        tache.DateArchivage = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
+
+        return Ok(new { tache.Id, tache.Titre, Message = "Tâche restaurée avec succès" });
     }
 
     [HttpDelete("{id}")]

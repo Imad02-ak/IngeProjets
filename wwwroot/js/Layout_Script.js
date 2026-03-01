@@ -95,6 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
         planning: "page-planning",
         budgets: "page-budgets",
         rapports: "page-rapports",
+        archives: "page-archives",
         utilisateurs: "page-utilisateurs",
         parametres: "page-parametres",
         support: "page-support",
@@ -147,6 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 break;
             case "rapports":
                 await renderReports();
+                break;
+            case "archives":
+                await renderArchives();
                 break;
             case "utilisateurs":
                 await renderUsers();
@@ -352,13 +356,47 @@ document.addEventListener("DOMContentLoaded", () => {
     async function renderPlanning() {
         await Promise.all([loadTasks(), loadProjects()]);
         renderPlanningStats();
+        renderPlanningKpis();
         renderCalendar();
         renderKanban();
-        // Gantt is rendered only when its tab is active (needs visible container)
+        // Gantt is default active view
         const ganttViewEl = $("ganttView");
-        if (ganttViewEl && ganttViewEl.classList.contains("active")) {
+        if (ganttViewEl && (ganttViewEl.classList.contains("active") || !document.querySelector('.planning-view.active'))) {
             renderGantt();
         }
+        // Populate dependency dropdown for create modal
+        populateTaskDependencyDropdown("taskDependance", null);
+    }
+
+    function renderPlanningKpis() {
+        const total = cachedTasks.length;
+        const done = cachedTasks.filter(t => t.statut === "Terminee").length;
+        const now = new Date(); now.setHours(0,0,0,0);
+        const overdue = cachedTasks.filter(t => new Date(t.dateEcheance) < now && t.statut !== "Terminee").length;
+        const completedPct = total > 0 ? Math.round(done / total * 100) : 0;
+
+        const upcoming = cachedTasks
+            .filter(t => t.statut !== "Terminee" && new Date(t.dateEcheance) >= now)
+            .sort((a, b) => new Date(a.dateEcheance) - new Date(b.dateEcheance));
+        const nextDeadline = upcoming.length > 0
+            ? new Date(upcoming[0].dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+            : "—";
+
+        const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+        el("kpiTotalTasks", total);
+        el("kpiCompletedPct", completedPct + "%");
+        el("kpiDelayedCount", overdue);
+        el("kpiNextDeadline", nextDeadline);
+    }
+
+    function populateTaskDependencyDropdown(selectId, excludeTaskId) {
+        const sel = $(selectId);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Aucune dépendance</option>' +
+            cachedTasks
+                .filter(t => t.id !== excludeTaskId)
+                .map(t => `<option value="${t.id}">${t.titre} (${t.projet})</option>`)
+                .join("");
     }
 
     function renderPlanningStats() {
@@ -603,6 +641,40 @@ document.addEventListener("DOMContentLoaded", () => {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
+    // Synchronize planning data
+    $("syncCalendarBtn")?.addEventListener("click", async () => {
+        const btn = $("syncCalendarBtn");
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> Synchronisation...';
+
+        try {
+            // Force-refresh cached data
+            cachedTasks = [];
+            cachedProjects = [];
+            await Promise.all([loadTasks(), loadProjects()]);
+
+            // Re-render all planning views
+            renderPlanningKpis();
+            renderPlanningStats();
+            renderCalendar();
+            renderKanban();
+            renderGantt();
+
+            // Re-render timeline/delayed if they are the active view
+            const activeView = document.querySelector(".planning-view.active");
+            if (activeView?.id === "timelineView") renderTimeline();
+            if (activeView?.id === "delayedView") await renderDelayedTasks();
+
+            showToast("success", "Synchronisation réussie", "Les données du planning ont été mises à jour");
+        } catch {
+            showToast("error", "Erreur de synchronisation", "Impossible de synchroniser les données. Réessayez.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+
     // Planning tabs
     $$(".planning-tab").forEach((tab) => {
         tab.addEventListener("click", () => {
@@ -619,10 +691,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 viewEl.classList.remove("hidden");
                 viewEl.classList.add("active");
                 if (view === "gantt") {
-                    // Small delay so container becomes visible before DHTMLX init
                     setTimeout(() => renderGantt(), 50);
                 }
                 if (view === "timeline") renderTimeline();
+                if (view === "delayed") renderDelayedTasks();
             }
         });
     });
@@ -697,9 +769,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Columns
             gantt.config.columns = [
-                { name: "text", label: "Tâche / Projet", width: 220, tree: true },
+                { name: "text", label: "Tâche / Projet", width: 200, tree: true },
                 { name: "start_date", label: "Début", align: "center", width: 90 },
-                { name: "duration", label: "Jours", align: "center", width: 60 },
+                { name: "duration", label: "Durée", align: "center", width: 55 },
+                {
+                    name: "assignee", label: "Responsable", align: "center", width: 110,
+                    template: function (task) { return task.assignee || ""; }
+                },
+                {
+                    name: "statut", label: "Statut", align: "center", width: 80,
+                    template: function (task) {
+                        if (task.type === "project") return "";
+                        var s = task.statut;
+                        var label = s === "AFaire" ? "À faire" : s === "EnCours" ? "En cours" : s === "EnRevue" ? "En revue" : s === "Terminee" ? "Terminée" : s;
+                        var color = task.isOverdue ? "#e50908" : s === "Terminee" ? "#3b82f6" : s === "EnCours" ? "#10b981" : "#f59e0b";
+                        return '<span style="color:' + color + ';font-weight:600;font-size:11px">' + label + '</span>';
+                    }
+                },
                 {
                     name: "progress", label: "%", align: "center", width: 50,
                     template: function (task) {
@@ -721,15 +807,15 @@ document.addEventListener("DOMContentLoaded", () => {
             gantt.config.show_markers = true;
             gantt.config.open_tree_initially = true;
             gantt.config.autofit = false;
-            gantt.config.grid_width = 430;
+            gantt.config.grid_width = 590;
             gantt.config.show_progress = true;
             gantt.config.readonly = true;
 
-            // Default scale (month view)
-            gantt.config.scale_unit = "month";
-            gantt.config.date_scale = "%F %Y";
-            gantt.config.subscales = [{ unit: "day", step: 1, date: "%d" }];
-            gantt.config.min_column_width = 30;
+            // Default scale (week view)
+            gantt.config.scale_unit = "week";
+            gantt.config.date_scale = "Semaine %W";
+            gantt.config.subscales = [{ unit: "day", step: 1, date: "%d %D" }];
+            gantt.config.min_column_width = 50;
 
             // Today marker (requires marker plugin)
             if (typeof gantt.addMarker === "function") {
@@ -763,10 +849,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Tooltip - simple inline, no plugin needed
             gantt.templates.tooltip_text = function (start, end, task) {
-                return "<b>" + task.text + "</b><br/>" +
+                var html = "<b>" + task.text + "</b><br/>" +
                     "Début: " + gantt.templates.tooltip_date_format(start) + "<br/>" +
                     "Fin: " + gantt.templates.tooltip_date_format(end) + "<br/>" +
                     "Progression: " + Math.round((task.progress || 0) * 100) + "%";
+                if (task.assignee) html += "<br/>Responsable: " + task.assignee;
+                if (task.phase) html += "<br/>Phase: " + task.phase;
+                if (task.isOverdue) html += "<br/><span style='color:#e50908;font-weight:bold'>⚠ En retard de " + task.joursRetard + " jour(s)</span>";
+                return html;
             };
 
             // Weekend highlighting
@@ -1289,6 +1379,9 @@ document.addEventListener("DOMContentLoaded", () => {
             progression: parseInt($("taskProgression")?.value) || 0,
             projetId: parseInt($("taskProject").value),
             assigneAId: $("taskAssignee").value || null,
+            phase: $("taskPhase")?.value || null,
+            commentaire: $("taskCommentaire")?.value || null,
+            dependanceId: $("taskDependance")?.value ? parseInt($("taskDependance").value) : null,
         };
         const result = await api("/api/tasks", { method: "POST", body: JSON.stringify(body) });
         if (result) {
@@ -1757,7 +1850,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- EVENT DELEGATION ---
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", async (e) => {
         // Card action buttons
         const actionBtn = e.target.closest("[data-action]");
         if (actionBtn) {
@@ -1782,7 +1875,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (action === "duplicate") {
                 showToast("success", "Projet dupliqué", "Le projet a été dupliqué avec succès");
             } else if (action === "archive") {
-                showToast("success", "Projet archivé", "Le projet a été déplacé dans les archives");
+                await archiveProject(projectId);
             } else if (action === "delete") {
                 openDeleteConfirm(projectId);
             }
@@ -1919,9 +2012,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         try {
-            const text = await file.text();
+            const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
 
-            if (file.name.endsWith(".json")) {
+            if (isExcel) {
+                await importExcelFile(file);
+            } else if (file.name.endsWith(".json")) {
+                const text = await file.text();
                 const data = JSON.parse(text);
                 const projects = Array.isArray(data) ? data : [data];
                 let created = 0;
@@ -1946,7 +2042,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 showToast("success", "Import réussi", `${created} projet(s) importé(s) depuis le fichier JSON.`);
             } else {
-                showToast("error", "Format non supporté", "Veuillez utiliser un fichier JSON pour l'import.");
+                showToast("error", "Format non supporté", "Veuillez utiliser un fichier Excel (.xlsx) ou JSON.");
             }
 
             cachedProjects = [];
@@ -1958,6 +2054,129 @@ document.addEventListener("DOMContentLoaded", () => {
 
         e.target.value = "";
     });
+
+    // Excel import: sends file to backend, then auto-creates complete projects
+    // and opens the create form pre-filled for incomplete ones
+    let pendingImportQueue = [];
+
+    async function importExcelFile(file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/import/excel", {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            showToast("error", "Erreur d'import", errText || "Impossible de lire le fichier Excel.");
+            return;
+        }
+
+        const results = await res.json();
+        const created = results.filter(r => r.created);
+        const incomplete = results.filter(r => !r.created);
+
+        if (created.length > 0) {
+            showToast("success", "Import réussi", `${created.length} projet(s) créé(s) automatiquement depuis Excel.`);
+        }
+
+        if (incomplete.length > 0) {
+            pendingImportQueue = [...incomplete.map(r => r.data)];
+            showToast("info", "Données incomplètes", `${incomplete.length} projet(s) nécessitent des informations supplémentaires. Le formulaire va s'ouvrir.`);
+            // Open the form for the first incomplete project
+            setTimeout(() => openImportFormForNext(), 500);
+        }
+
+        cachedProjects = [];
+        await renderProjects();
+    }
+
+    function openImportFormForNext() {
+        if (pendingImportQueue.length === 0) return;
+
+        const data = pendingImportQueue.shift();
+        prefillProjectForm(data);
+        projectModal?.classList.add("active");
+
+        // Show info about remaining items
+        if (pendingImportQueue.length > 0) {
+            showToast("info", "File d'import", `${pendingImportQueue.length} projet(s) restant(s) à compléter après celui-ci.`);
+        }
+    }
+
+    function prefillProjectForm(data) {
+        // Reset form first
+        $("projectForm")?.reset();
+
+        if (data.nom) $("projectName").value = data.nom;
+        if (data.code) $("projectCode").value = data.code;
+        if (data.description) $("projectDesc").value = data.description;
+        if (data.type) $("projectType").value = data.type;
+        if (data.priorite) $("projectPriority").value = data.priorite;
+        if (data.dateDebut) $("projectStartDate").value = data.dateDebut;
+        if (data.dateFinPrevue) $("projectEndDate").value = data.dateFinPrevue;
+        if (data.budgetAlloue) $("projectBudget").value = data.budgetAlloue;
+        if (data.propositionPrix) {
+            const ppEl = $("projectPriceProposal");
+            if (ppEl) ppEl.value = data.propositionPrix;
+        }
+        if (data.localisation) {
+            setGeoFromLocalisation(data.localisation, "projectWilaya", "projectDaira", "projectCommune");
+        }
+        if (data.maitreOuvrage) $("projectClient").value = data.maitreOuvrage;
+
+        // Highlight missing required fields
+        highlightMissingFields(data);
+    }
+
+    function highlightMissingFields(data) {
+        const requiredMap = {
+            projectName: data.nom,
+            projectType: data.type,
+            projectStartDate: data.dateDebut,
+            projectEndDate: data.dateFinPrevue,
+            projectBudget: data.budgetAlloue,
+        };
+
+        Object.entries(requiredMap).forEach(([fieldId, value]) => {
+            const el = $(fieldId);
+            if (!el) return;
+            // Remove previous highlights
+            el.style.removeProperty("border-color");
+            el.style.removeProperty("box-shadow");
+
+            if (!value) {
+                el.style.borderColor = "#e50908";
+                el.style.boxShadow = "0 0 0 2px rgba(229, 9, 8, 0.15)";
+                // Remove highlight when user interacts
+                const clearHighlight = () => {
+                    el.style.removeProperty("border-color");
+                    el.style.removeProperty("box-shadow");
+                    el.removeEventListener("input", clearHighlight);
+                    el.removeEventListener("change", clearHighlight);
+                };
+                el.addEventListener("input", clearHighlight);
+                el.addEventListener("change", clearHighlight);
+            }
+        });
+    }
+
+    // Override save project to continue import queue after saving
+    const originalSaveHandler = $("saveProjectBtn");
+    if (originalSaveHandler) {
+        const origClick = originalSaveHandler.onclick;
+        // We'll hook into the modal close to check if there are more imports
+        const observer = new MutationObserver(() => {
+            if (projectModal && !projectModal.classList.contains("active") && pendingImportQueue.length > 0) {
+                setTimeout(() => openImportFormForNext(), 600);
+            }
+        });
+        if (projectModal) {
+            observer.observe(projectModal, { attributes: true, attributeFilter: ["class"] });
+        }
+    }
 
     // ===========================
     // SEARCH FUNCTIONALITY
@@ -2233,6 +2452,54 @@ document.addEventListener("DOMContentLoaded", () => {
         if (label) label.textContent = val + "%";
     });
 
+    // Duration auto-calculation
+    function calcDuration(startId, endId, durationId) {
+        const s = $(startId)?.value;
+        const e = $(endId)?.value;
+        const d = $(durationId);
+        if (s && e && d) {
+            const diff = Math.max(0, Math.round((new Date(e) - new Date(s)) / 86400000));
+            d.value = diff;
+        } else if (d) {
+            d.value = "";
+        }
+    }
+
+    $("taskStartDate")?.addEventListener("change", () => calcDuration("taskStartDate", "taskDueDate", "taskDuration"));
+    $("taskDueDate")?.addEventListener("change", () => calcDuration("taskStartDate", "taskDueDate", "taskDuration"));
+    $("editTaskStartDate")?.addEventListener("change", () => calcDuration("editTaskStartDate", "editTaskDueDate", "editTaskDuration"));
+    $("editTaskDueDate")?.addEventListener("change", () => calcDuration("editTaskStartDate", "editTaskDueDate", "editTaskDuration"));
+
+    // Delayed tasks view
+    async function renderDelayedTasks() {
+        const body = $("delayedTasksBody");
+        if (!body) return;
+
+        const tasks = await api("/api/tasks/delayed");
+        if (!tasks || tasks.length === 0) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary);"><i class="fa-solid fa-check-circle" style="font-size:28px;display:block;margin-bottom:8px;color:var(--color-success)"></i>Aucune tâche en retard !</td></tr>';
+            return;
+        }
+
+        body.innerHTML = tasks.map(t => {
+            const echeance = new Date(t.dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+            return `<tr>
+                <td><strong>${esc(t.titre)}</strong></td>
+                <td>${esc(t.projet)}</td>
+                <td>${esc(t.assigneA)}</td>
+                <td>${echeance}</td>
+                <td><span style="color:#e50908;font-weight:700"><i class="fa-solid fa-triangle-exclamation"></i> ${t.joursRetard} jour(s)</span></td>
+                <td>
+                    <div class="progress-bar" style="width:60px"><div class="progress-fill" style="width:${t.progression}%;background:#e50908"></div></div>
+                    ${t.progression}%
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline" data-edit-task-id="${t.id}" title="Modifier"><i class="fa-solid fa-pen"></i></button>
+                </td>
+            </tr>`;
+        }).join("");
+    }
+
     // ===========================
     // TASK EDIT / DELETE
     // ===========================
@@ -2255,6 +2522,13 @@ document.addEventListener("DOMContentLoaded", () => {
         $("editTaskProgression").value = t.progression || 0;
         $("editTaskProgressionValue").textContent = (t.progression || 0) + "%";
 
+        // New fields
+        if ($("editTaskPhase")) $("editTaskPhase").value = t.phase || "";
+        if ($("editTaskCommentaire")) $("editTaskCommentaire").value = t.commentaire || "";
+
+        // Auto-calc duration
+        calcDuration("editTaskStartDate", "editTaskDueDate", "editTaskDuration");
+
         // Populate project dropdown
         const projSelect = $("editTaskProject");
         if (projSelect) {
@@ -2269,6 +2543,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 cachedUsers.map(u => `<option value="${u.id}">${u.nomComplet}</option>`).join("");
             assigneeSelect.value = t.assigneAId || "";
         }
+
+        // Populate dependency dropdown (exclude current task)
+        populateTaskDependencyDropdown("editTaskDependance", taskId);
+        if ($("editTaskDependance")) $("editTaskDependance").value = t.dependanceId || "";
 
         editTaskModal?.classList.add("active");
     }
@@ -2299,6 +2577,9 @@ document.addEventListener("DOMContentLoaded", () => {
             dateEcheance: $("editTaskDueDate").value,
             progression: parseInt($("editTaskProgression").value) || 0,
             assigneAId: $("editTaskAssignee").value || null,
+            phase: $("editTaskPhase")?.value || null,
+            commentaire: $("editTaskCommentaire")?.value || null,
+            dependanceId: $("editTaskDependance")?.value ? parseInt($("editTaskDependance").value) : null,
         };
 
         const result = await api(`/api/tasks/${editingTaskId}`, { method: "PUT", body: JSON.stringify(body) });
@@ -2598,6 +2879,186 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         deleteDocModal?.classList.remove("active");
     });
+
+    // ===========================
+    // ARCHIVE FUNCTIONALITY
+    // ===========================
+    async function archiveProject(projectId) {
+        const result = await api(`/api/projects/${projectId}/archive`, { method: "POST" });
+        if (result) {
+            showToast("success", "Projet archivé", "Le projet et ses tâches ont été déplacés dans les archives");
+            cachedProjects = [];
+            cachedTasks = [];
+            await renderProjects();
+        } else {
+            showToast("error", "Erreur", "Impossible d'archiver le projet.");
+        }
+    }
+
+    async function restoreProject(projectId) {
+        const result = await api(`/api/projects/${projectId}/restore`, { method: "POST" });
+        if (result) {
+            showToast("success", "Projet restauré", "Le projet a été restauré avec succès");
+            cachedProjects = [];
+            cachedTasks = [];
+            await renderArchives();
+        } else {
+            showToast("error", "Erreur", "Impossible de restaurer le projet.");
+        }
+    }
+
+    async function archiveTask(taskId) {
+        const result = await api(`/api/tasks/${taskId}/archive`, { method: "POST" });
+        if (result) {
+            showToast("success", "Tâche archivée", "La tâche a été déplacée dans les archives");
+            cachedTasks = [];
+            await renderPlanning();
+        } else {
+            showToast("error", "Erreur", "Impossible d'archiver la tâche.");
+        }
+    }
+
+    async function restoreTask(taskId) {
+        const result = await api(`/api/tasks/${taskId}/restore`, { method: "POST" });
+        if (result) {
+            showToast("success", "Tâche restaurée", "La tâche a été restaurée avec succès");
+            cachedTasks = [];
+            await renderArchives();
+        } else {
+            showToast("error", "Erreur", "Impossible de restaurer la tâche.");
+        }
+    }
+
+    // Archive tabs
+    document.addEventListener("click", (e) => {
+        const archiveTab = e.target.closest("[data-archive-tab]");
+        if (archiveTab) {
+            e.preventDefault();
+            $$("[data-archive-tab]").forEach(t => t.classList.remove("active"));
+            archiveTab.classList.add("active");
+
+            const tab = archiveTab.dataset.archiveTab;
+            $("archiveProjectsPanel")?.classList.toggle("active", tab === "projects");
+            $("archiveProjectsPanel")?.classList.toggle("hidden", tab !== "projects");
+            $("archiveTasksPanel")?.classList.toggle("active", tab === "tasks");
+            $("archiveTasksPanel")?.classList.toggle("hidden", tab !== "tasks");
+        }
+
+        // Restore project button
+        const restoreProjectBtn = e.target.closest("[data-restore-project-id]");
+        if (restoreProjectBtn) {
+            e.stopPropagation();
+            restoreProject(parseInt(restoreProjectBtn.dataset.restoreProjectId));
+            return;
+        }
+
+        // Restore task button
+        const restoreTaskBtn = e.target.closest("[data-restore-task-id]");
+        if (restoreTaskBtn) {
+            e.stopPropagation();
+            restoreTask(parseInt(restoreTaskBtn.dataset.restoreTaskId));
+            return;
+        }
+    });
+
+    // Archive search
+    $("archiveSearch")?.addEventListener("input", () => {
+        const query = ($("archiveSearch")?.value || "").toLowerCase().trim();
+        $$("#archiveProjectsBody tr").forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        });
+        $$("#archiveTasksBody tr").forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        });
+    });
+
+    async function renderArchives() {
+        const [stats, projects, tasks] = await Promise.all([
+            api("/api/archives/stats"),
+            api("/api/archives/projects"),
+            api("/api/archives/tasks"),
+        ]);
+
+        // Stats
+        if (stats) {
+            const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+            el("archiveProjetsCount", stats.projetsArchives);
+            el("archiveTachesCount", stats.tachesArchivees);
+            el("archiveBudgetTotal", stats.budgetArchive > 0
+                ? `${(stats.budgetArchive / 1000000).toFixed(1)}M €`
+                : "0 €");
+        }
+
+        // Archived projects table
+        const projBody = $("archiveProjectsBody");
+        if (projBody && projects) {
+            if (projects.length === 0) {
+                projBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary);"><i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>Aucun projet archivé</td></tr>';
+            } else {
+                projBody.innerHTML = projects.map(p => {
+                    const sc = statusCssMap[p.statut] || "info";
+                    const archiveDate = p.dateArchivage
+                        ? new Date(p.dateArchivage).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                        : "—";
+                    return `<tr>
+                        <td><strong>${esc(p.nom)}</strong><br><small>${esc(p.code || "")}</small></td>
+                        <td>${esc(typeLabels[p.type] || p.type)}</td>
+                        <td><span class="project-status status--${sc}">${esc(statusLabels[p.statut] || p.statut)}</span></td>
+                        <td>${(p.budgetAlloue / 1000000).toFixed(1)}M €</td>
+                        <td>
+                            <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${p.avancement}%"></div></div>
+                            ${p.avancement}%
+                        </td>
+                        <td>${archiveDate}</td>
+                        <td>
+                            <div class="table-actions-group">
+                                <button class="btn btn-sm btn-primary" data-restore-project-id="${p.id}" title="Restaurer">
+                                    <i class="fa-solid fa-rotate-left"></i> Restaurer
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join("");
+            }
+        }
+
+        // Archived tasks table
+        const taskBody = $("archiveTasksBody");
+        if (taskBody && tasks) {
+            if (tasks.length === 0) {
+                taskBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary);"><i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>Aucune tâche archivée</td></tr>';
+            } else {
+                taskBody.innerHTML = tasks.map(t => {
+                    const tsc = taskStatusMap[t.statut] || "todo";
+                    const tpc = prioriteCssMap[t.priorite] || "medium";
+                    const statusLabel = t.statut === "AFaire" ? "À faire" : t.statut === "EnCours" ? "En cours" : t.statut === "EnRevue" ? "En revue" : "Terminée";
+                    const archiveDate = t.dateArchivage
+                        ? new Date(t.dateArchivage).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                        : "—";
+                    const canRestore = !t.projetArchive;
+                    return `<tr>
+                        <td><strong>${esc(t.titre)}</strong></td>
+                        <td>${esc(t.projet)}${t.projetArchive ? ' <small style="color:var(--text-tertiary)">(archivé)</small>' : ''}</td>
+                        <td><span class="timeline-status timeline-status-${tsc}">${statusLabel}</span></td>
+                        <td><span class="project-card-priority priority-${tpc}">${prioriteLabels[t.priorite] || t.priorite}</span></td>
+                        <td>
+                            <div class="progress-bar" style="width:60px;"><div class="progress-fill" style="width:${t.progression}%"></div></div>
+                            ${t.progression}%
+                        </td>
+                        <td>${archiveDate}</td>
+                        <td>
+                            <div class="table-actions-group">
+                                ${canRestore
+                                    ? `<button class="btn btn-sm btn-primary" data-restore-task-id="${t.id}" title="Restaurer"><i class="fa-solid fa-rotate-left"></i> Restaurer</button>`
+                                    : `<span style="color:var(--text-tertiary);font-size:var(--font-sm)">Restaurer le projet d'abord</span>`
+                                }
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join("");
+            }
+        }
+    }
 
     handleHash();
 });

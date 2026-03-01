@@ -24,6 +24,7 @@ public class ProjectsController : ControllerBase
     {
         var projets = await _context.Projets
             .AsNoTracking()
+            .Where(p => !p.EstArchive)
             .OrderByDescending(p => p.DateCreation)
             .Select(p => new ProjetSummaryDto(
                 p.Id,
@@ -181,6 +182,67 @@ public class ProjectsController : ControllerBase
         return Ok(new { projet.Id, projet.Nom });
     }
 
+    /// <summary>Archives a project and all its non-completed tasks.</summary>
+    [HttpPost("{id}/archive")]
+    [Authorize(Policy = "RequireEncadrement")]
+    public async Task<IActionResult> Archive(int id, CancellationToken cancellationToken)
+    {
+        var projet = await _context.Projets
+            .Include(p => p.Taches)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (projet is null)
+            return NotFound();
+
+        if (projet.EstArchive)
+            return BadRequest("Ce projet est déjà archivé.");
+
+        var now = DateTime.UtcNow;
+        projet.EstArchive = true;
+        projet.DateArchivage = now;
+        projet.DateModification = now;
+
+        foreach (var tache in projet.Taches.Where(t => !t.EstArchive))
+        {
+            tache.EstArchive = true;
+            tache.DateArchivage = now;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { projet.Id, projet.Nom, Message = "Projet archivé avec succès" });
+    }
+
+    /// <summary>Restores an archived project and all its tasks.</summary>
+    [HttpPost("{id}/restore")]
+    [Authorize(Policy = "RequireEncadrement")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var projet = await _context.Projets
+            .Include(p => p.Taches)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (projet is null)
+            return NotFound();
+
+        if (!projet.EstArchive)
+            return BadRequest("Ce projet n'est pas archivé.");
+
+        projet.EstArchive = false;
+        projet.DateArchivage = null;
+        projet.DateModification = DateTime.UtcNow;
+
+        foreach (var tache in projet.Taches.Where(t => t.EstArchive))
+        {
+            tache.EstArchive = false;
+            tache.DateArchivage = null;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { projet.Id, projet.Nom, Message = "Projet restauré avec succès" });
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Policy = "RequireGerantOuCoGerant")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
@@ -199,6 +261,7 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
     {
         var projetStats = await _context.Projets
+            .Where(p => !p.EstArchive)
             .GroupBy(_ => 1)
             .Select(g => new
             {
@@ -217,6 +280,7 @@ public class ProjectsController : ControllerBase
             .SumAsync(t => t.Montant, cancellationToken);
 
         var parType = await _context.Projets
+            .Where(p => !p.EstArchive)
             .GroupBy(p => p.Type)
             .Select(g => new { Type = g.Key.ToString(), Count = g.Count() })
             .ToListAsync(cancellationToken);

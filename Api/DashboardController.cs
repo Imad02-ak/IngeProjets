@@ -24,12 +24,14 @@ public class DashboardController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetDashboardData(CancellationToken cancellationToken)
     {
+        var activeProjects = _context.Projets.Where(p => !p.EstArchive);
+
         var kpis = new
         {
-            ChantiersActifs = await _context.Projets.CountAsync(p => p.Statut == StatutProjet.EnCours, cancellationToken),
-            ProjetsTermines = await _context.Projets.CountAsync(p => p.Statut == StatutProjet.Termine, cancellationToken),
-            Alertes = await _context.Projets.CountAsync(p => p.Statut == StatutProjet.EnRetard, cancellationToken),
-            BudgetTotal = await _context.Projets.SumAsync(p => p.BudgetAlloue, cancellationToken),
+            ChantiersActifs = await activeProjects.CountAsync(p => p.Statut == StatutProjet.EnCours, cancellationToken),
+            ProjetsTermines = await activeProjects.CountAsync(p => p.Statut == StatutProjet.Termine, cancellationToken),
+            Alertes = await activeProjects.CountAsync(p => p.Statut == StatutProjet.EnRetard, cancellationToken),
+            BudgetTotal = await activeProjects.SumAsync(p => p.BudgetAlloue, cancellationToken),
             DepensesTotales = await _context.TransactionsBudget
                 .Where(t => t.Type == TypeTransaction.Depense)
                 .SumAsync(t => t.Montant, cancellationToken)
@@ -40,6 +42,7 @@ public class DashboardController : ControllerBase
             : 0;
 
         var projetsRecents = await _context.Projets
+            .Where(p => !p.EstArchive)
             .OrderByDescending(p => p.DateCreation)
             .Take(4)
             .Select(p => new
@@ -52,7 +55,7 @@ public class DashboardController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var echeancesProches = await _context.Taches
-            .Where(t => t.Statut != StatutTache.Terminee)
+            .Where(t => !t.EstArchive && t.Statut != StatutTache.Terminee)
             .OrderBy(t => t.DateEcheance)
             .Take(4)
             .Select(t => new
@@ -64,7 +67,7 @@ public class DashboardController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        var parType = await _context.Projets
+        var parType = await activeProjects
             .GroupBy(p => p.Type)
             .Select(g => new { Type = g.Key.ToString(), Count = g.Count() })
             .ToListAsync(cancellationToken);

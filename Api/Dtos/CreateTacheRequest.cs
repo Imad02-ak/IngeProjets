@@ -26,6 +26,14 @@ public sealed class CreateTacheRequest : IValidatableObject
 
     public string? AssigneAId { get; init; }
 
+    [StringLength(200)]
+    public string? Phase { get; init; }
+
+    [StringLength(2000)]
+    public string? Commentaire { get; init; }
+
+    public int? DependanceId { get; init; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (DateDebut.HasValue && DateEcheance <= DateDebut.Value)

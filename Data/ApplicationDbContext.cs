@@ -1,4 +1,4 @@
-using IngeProjets.Data.Models;
+﻿using IngeProjets.Data.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +27,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(p => p.Code).IsUnique().HasFilter("[Code] IS NOT NULL");
             entity.HasIndex(p => p.Statut);
             entity.HasIndex(p => p.Type);
+            entity.HasIndex(p => p.EstArchive);
 
             entity.HasOne(p => p.ChefProjet)
                   .WithMany(u => u.ProjetsGeres)
@@ -39,6 +40,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasIndex(t => t.Statut);
             entity.HasIndex(t => t.DateEcheance);
+            entity.HasIndex(t => t.EstArchive);
 
             entity.HasOne(t => t.Projet)
                   .WithMany(p => p.Taches)
@@ -49,6 +51,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(u => u.TachesAssignees)
                   .HasForeignKey(t => t.AssigneAId)
                   .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(t => t.Dependance)
+                  .WithMany(t => t.TachesDependantes)
+                  .HasForeignKey(t => t.DependanceId)
+                  .OnDelete(DeleteBehavior.NoAction); // ← Remplacer SetNull par NoAction
         });
 
         // --- TransactionBudget ---

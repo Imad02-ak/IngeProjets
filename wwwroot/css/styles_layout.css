@@ -105,7 +105,8 @@ body {
     gap: var(--space-md);
     border-top-right-radius: 30px;
     box-shadow: 1px 0 24px rgba(229, 9, 8, 0.12), 12px -8px 32px rgba(229, 9, 8, 0.08);
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     z-index: 100;
     transition: width var(--transition-sidebar), border-radius var(--transition-sidebar);
     scrollbar-width: none;

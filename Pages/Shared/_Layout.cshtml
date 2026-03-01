@@ -83,6 +83,10 @@
                     <div class="nav-icon"><i class="fa-solid fa-chart-bar"></i></div>
                     <span class="nav-text">Rapports</span>
                 </a>
+                <a href="#archives" class="nav-item" data-page="archives">
+                    <div class="nav-icon"><i class="fa-solid fa-box-archive"></i></div>
+                    <span class="nav-text">Archives</span>
+                </a>
                 <a href="#utilisateurs" class="nav-item" data-page="utilisateurs">
                     <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
                     <span class="nav-text">Utilisateurs</span>
@@ -414,7 +418,7 @@
                             </button>
                             <label class="btn btn-outline" id="importProjectsLabel" style="cursor:pointer;margin:0;">
                                 <i class="fa-solid fa-upload"></i> Importer
-                                <input type="file" id="importProjectsFile" accept=".json,.csv" style="display:none;" />
+                                <input type="file" id="importProjectsFile" accept=".json,.xlsx,.xls" style="display:none;" />
                             </label>
                             <button class="btn btn-primary" id="newProjectBtn">
                                 <i class="fa-solid fa-plus"></i> Nouveau Projet
@@ -570,20 +574,63 @@
                         </div>
                     </div>
 
+                    <!-- KPI Planning -->
+                    <div class="kpi-grid" id="planningKpis">
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--primary">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Total Tâches</h3>
+                                <p class="kpi-value" id="kpiTotalTasks">0</p>
+                            </div>
+                        </div>
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--success">
+                                <i class="fa-solid fa-check-double"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Terminées</h3>
+                                <p class="kpi-value" id="kpiCompletedPct">0%</p>
+                            </div>
+                        </div>
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--warning">
+                                <i class="fa-solid fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">En retard</h3>
+                                <p class="kpi-value" id="kpiDelayedCount">0</p>
+                            </div>
+                        </div>
+                        <div class="card kpi-card">
+                            <div class="kpi-icon kpi-icon--info">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div class="kpi-content">
+                                <h3 class="kpi-label">Prochaine échéance</h3>
+                                <p class="kpi-value" id="kpiNextDeadline" style="font-size: var(--font-lg)">—</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Planning Navigation -->
                     <div class="planning-nav">
                         <div class="planning-tabs">
-                            <button class="planning-tab active" data-view="calendar">
-                                <i class="fa-solid fa-calendar"></i> Calendrier
-                            </button>
                             <button class="planning-tab" data-view="gantt">
                                 <i class="fa-solid fa-bars-staggered"></i> Gantt
+                            </button>
+                            <button class="planning-tab" data-view="calendar">
+                                <i class="fa-solid fa-calendar"></i> Calendrier
                             </button>
                             <button class="planning-tab" data-view="kanban">
                                 <i class="fa-solid fa-columns"></i> Kanban
                             </button>
                             <button class="planning-tab" data-view="timeline">
                                 <i class="fa-solid fa-timeline"></i> Timeline
+                            </button>
+                            <button class="planning-tab" data-view="delayed">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Retards
                             </button>
                         </div>
                         <div class="planning-controls">
@@ -605,8 +652,42 @@
                         <!-- Rempli par JS -->
                     </div>
 
+                    <!-- Vue Gantt (DHTMLX) - Default active -->
+                    <div class="planning-view active" id="ganttView">
+                        <div class="gantt-toolbar">
+                            <div class="gantt-toolbar-left">
+                                <select class="filter-select" id="ganttProjectFilter">
+                                    <option value="">Tous les projets</option>
+                                </select>
+                            </div>
+                            <div class="gantt-toolbar-right">
+                                <div class="gantt-zoom-btns">
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="day">Jour</button>
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn active" data-zoom="week">Semaine</button>
+                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="month">Mois</button>
+                                </div>
+                                <button class="btn btn-sm btn-outline" id="ganttTodayBtn">
+                                    <i class="fa-solid fa-crosshairs"></i> Aujourd'hui
+                                </button>
+                                <button class="btn btn-sm btn-outline" id="ganttExpandAllBtn">
+                                    <i class="fa-solid fa-expand"></i> Tout déplier
+                                </button>
+                                <button class="btn btn-sm btn-outline" id="ganttCollapseAllBtn">
+                                    <i class="fa-solid fa-compress"></i> Tout replier
+                                </button>
+                            </div>
+                        </div>
+                        <div class="gantt-legend">
+                            <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#f59e0b"></span> En attente</span>
+                            <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#10b981"></span> En cours</span>
+                            <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#3b82f6"></span> Terminée</span>
+                            <span class="gantt-legend-item"><span class="gantt-legend-color" style="background:#e50908"></span> En retard</span>
+                        </div>
+                        <div id="dhtmlxGantt" style="width:100%; height:600px;"></div>
+                    </div>
+
                     <!-- Vue Calendrier -->
-                    <div class="planning-view active" id="calendarView">
+                    <div class="planning-view hidden" id="calendarView">
                         <div class="calendar-header">
                             <div class="calendar-day-name">Lun</div>
                             <div class="calendar-day-name">Mar</div>
@@ -621,35 +702,6 @@
                         </div>
                     </div>
 
-                    <!-- Vue Gantt (DHTMLX) -->
-                    <div class="planning-view hidden" id="ganttView">
-                        <div class="gantt-toolbar">
-                            <div class="gantt-toolbar-left">
-                                <select class="filter-select" id="ganttProjectFilter">
-                                    <option value="">Tous les projets</option>
-                                </select>
-                            </div>
-                            <div class="gantt-toolbar-right">
-                                <div class="gantt-zoom-btns">
-                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="day">Jour</button>
-                                    <button class="btn btn-sm btn-outline gantt-zoom-btn active" data-zoom="week">Semaine</button>
-                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="month">Mois</button>
-                                    <button class="btn btn-sm btn-outline gantt-zoom-btn" data-zoom="year">Année</button>
-                                </div>
-                                <button class="btn btn-sm btn-outline" id="ganttTodayBtn">
-                                    <i class="fa-solid fa-crosshairs"></i> Aujourd'hui
-                                </button>
-                                <button class="btn btn-sm btn-outline" id="ganttExpandAllBtn">
-                                    <i class="fa-solid fa-expand"></i> Tout déplier
-                                </button>
-                                <button class="btn btn-sm btn-outline" id="ganttCollapseAllBtn">
-                                    <i class="fa-solid fa-compress"></i> Tout replier
-                                </button>
-                            </div>
-                        </div>
-                        <div id="dhtmlxGantt" style="width:100%; height:600px;"></div>
-                    </div>
-
                     <!-- Vue Kanban -->
                     <div class="planning-view hidden" id="kanbanView">
                         <div class="kanban-board">
@@ -659,7 +711,6 @@
                                     <span class="kanban-count" id="kanbanTodoCount">0</span>
                                 </div>
                                 <div class="kanban-cards" id="kanbanTodo">
-                                    <!-- Rempli par JS -->
                                 </div>
                             </div>
                             <div class="kanban-column" data-status="progress">
@@ -668,7 +719,6 @@
                                     <span class="kanban-count" id="kanbanProgressCount">0</span>
                                 </div>
                                 <div class="kanban-cards" id="kanbanProgress">
-                                    <!-- Rempli par JS -->
                                 </div>
                             </div>
                             <div class="kanban-column" data-status="review">
@@ -677,7 +727,6 @@
                                     <span class="kanban-count" id="kanbanReviewCount">0</span>
                                 </div>
                                 <div class="kanban-cards" id="kanbanReview">
-                                    <!-- Rempli par JS -->
                                 </div>
                             </div>
                             <div class="kanban-column" data-status="done">
@@ -686,7 +735,6 @@
                                     <span class="kanban-count" id="kanbanDoneCount">0</span>
                                 </div>
                                 <div class="kanban-cards" id="kanbanDone">
-                                    <!-- Rempli par JS -->
                                 </div>
                             </div>
                         </div>
@@ -695,29 +743,57 @@
                     <!-- Vue Timeline -->
                     <div class="planning-view hidden" id="timelineView">
                         <div class="timeline-container" id="timelineContainer">
-                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+
+                    <!-- Vue Retards -->
+                    <div class="planning-view hidden" id="delayedView">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--color-red)"></i> Tâches en retard
+                                </h2>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tâche</th>
+                                            <th>Projet</th>
+                                            <th>Responsable</th>
+                                            <th>Échéance</th>
+                                            <th>Jours de retard</th>
+                                            <th>Progression</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="delayedTasksBody">
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Légende et ressources -->
                     <div class="planning-footer">
                         <div class="card legend-card">
-                            <h3 class="card-title">Légende</h3>
+                            <h3 class="card-title">Légende Statuts</h3>
                             <div class="legend-items">
                                 <span class="legend-item">
-                                    <span class="legend-color legend-urgent"></span>
-                                    Urgent
+                                    <span class="legend-color" style="background:#f59e0b"></span>
+                                    En attente
                                 </span>
                                 <span class="legend-item">
-                                    <span class="legend-color legend-high"></span> Haute
-                                    priorité
+                                    <span class="legend-color" style="background:#10b981"></span>
+                                    En cours
                                 </span>
                                 <span class="legend-item">
-                                    <span class="legend-color legend-medium"></span>
-                                    Moyenne
+                                    <span class="legend-color" style="background:#3b82f6"></span>
+                                    Terminée
                                 </span>
                                 <span class="legend-item">
-                                    <span class="legend-color legend-low"></span> Basse
+                                    <span class="legend-color" style="background:#e50908"></span>
+                                    En retard
                                 </span>
                             </div>
                         </div>
@@ -994,6 +1070,105 @@
                         </div>
                         <div class="reports-list" id="reportsList">
                             <!-- Rempli par JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========================================== -->
+                <!-- PAGE: ARCHIVES -->
+                <!-- ========================================== -->
+                <section class="page-section" id="page-archives">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Archives</h2>
+                            <p class="page-subtitle">
+                                Retrouvez tous les projets et tâches archivés
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Stats Archives -->
+                    <div class="quick-stats" id="archiveStats">
+                        <div class="quick-stat">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-box-archive"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="archiveProjetsCount">0</span>
+                                <span class="quick-stat-label">Projets archivés</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat quick-stat--progress">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-list-check"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="archiveTachesCount">0</span>
+                                <span class="quick-stat-label">Tâches archivées</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat quick-stat--warning">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-coins"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="archiveBudgetTotal">0 €</span>
+                                <span class="quick-stat-label">Budget archivé</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onglets Archives -->
+                    <div class="users-tabs">
+                        <button class="users-tab active" data-archive-tab="projects">
+                            <i class="fa-solid fa-folder-open"></i> Projets archivés
+                        </button>
+                        <button class="users-tab" data-archive-tab="tasks">
+                            <i class="fa-solid fa-list-check"></i> Tâches archivées
+                        </button>
+                    </div>
+
+                    <!-- Projets archivés -->
+                    <div class="users-panel active" id="archiveProjectsPanel">
+                        <div class="filters-bar">
+                            <div class="search-box">
+                                <i class="fa-solid fa-search"></i>
+                                <input type="text" placeholder="Rechercher dans les archives..." id="archiveSearch" />
+                            </div>
+                        </div>
+                        <div class="projects-table-container" id="archiveProjectsTable">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Projet</th>
+                                        <th>Type</th>
+                                        <th>Statut</th>
+                                        <th>Budget</th>
+                                        <th>Avancement</th>
+                                        <th>Date d'archivage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="archiveProjectsBody">
+                                    <!-- Rempli par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tâches archivées -->
+                    <div class="users-panel hidden" id="archiveTasksPanel">
+                        <div class="projects-table-container" id="archiveTasksTable">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tâche</th>
+                                        <th>Projet</th>
+                                        <th>Statut</th>
+                                        <th>Priorité</th>
+                                        <th>Progression</th>
+                                        <th>Date d'archivage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="archiveTasksBody">
+                                    <!-- Rempli par JS -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </section>
@@ -2144,12 +2319,24 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label class="form-label">Phase</label>
+                            <input type="text" class="form-input" id="taskPhase" placeholder="Ex: Terrassement" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
                             <label class="form-label">Priorité</label>
                             <select class="form-select" id="taskPriority">
                                 <option value="Moyenne">Moyenne</option>
                                 <option value="Basse">Basse</option>
                                 <option value="Haute">Haute</option>
                                 <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dépendance (Fin → Début)</label>
+                            <select class="form-select" id="taskDependance">
+                                <option value="">Aucune dépendance</option>
                             </select>
                         </div>
                     </div>
@@ -2168,18 +2355,29 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label">Durée (jours)</label>
+                            <input type="number" class="form-input" id="taskDuration" readonly placeholder="Auto" />
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Assigné à</label>
                             <select class="form-select" id="taskAssignee">
                                 <option value="">Non assigné</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Progression (%)</label>
-                            <div class="form-input-group">
-                                <input type="range" class="form-range" id="taskProgression" min="0" max="100" value="0" />
-                                <span class="form-range-value" id="taskProgressionValue">0%</span>
-                            </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Progression (%)</label>
+                        <div class="form-input-group">
+                            <input type="range" class="form-range" id="taskProgression" min="0" max="100" value="0" />
+                            <span class="form-range-value" id="taskProgressionValue">0%</span>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-textarea"
+                                  id="taskCommentaire"
+                                  rows="2"
+                                  placeholder="Notes ou commentaires..."></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Description</label>
@@ -2224,6 +2422,18 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label">Phase</label>
+                            <input type="text" class="form-input" id="editTaskPhase" placeholder="Ex: Terrassement" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dépendance (Fin → Début)</label>
+                            <select class="form-select" id="editTaskDependance">
+                                <option value="">Aucune dépendance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
                             <label class="form-label">Priorité</label>
                             <select class="form-select" id="editTaskPriority">
                                 <option value="Moyenne">Moyenne</option>
@@ -2254,18 +2464,26 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label">Durée (jours)</label>
+                            <input type="number" class="form-input" id="editTaskDuration" readonly placeholder="Auto" />
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">Assigné à</label>
                             <select class="form-select" id="editTaskAssignee">
                                 <option value="">Non assigné</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Progression (%)</label>
-                            <div class="form-input-group">
-                                <input type="range" class="form-range" id="editTaskProgression" min="0" max="100" value="0" />
-                                <span class="form-range-value" id="editTaskProgressionValue">0%</span>
-                            </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Progression (%)</label>
+                        <div class="form-input-group">
+                            <input type="range" class="form-range" id="editTaskProgression" min="0" max="100" value="0" />
+                            <span class="form-range-value" id="editTaskProgressionValue">0%</span>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-textarea" id="editTaskCommentaire" rows="2" placeholder="Notes ou commentaires..."></textarea>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Description</label>

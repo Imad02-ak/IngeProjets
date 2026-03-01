@@ -4,6 +4,7 @@ using IngeProjets.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IngeProjets.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260216185436_AddArchiveFields")]
+    partial class AddArchiveFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -294,10 +297,6 @@ namespace IngeProjets.Migrations
                     b.Property<string>("AssigneAId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("Commentaire")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
                     b.Property<DateTime?>("DateArchivage")
                         .HasColumnType("datetime2");
 
@@ -313,19 +312,12 @@ namespace IngeProjets.Migrations
                     b.Property<DateTime?>("DateFinReelle")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("DependanceId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
                     b.Property<bool>("EstArchive")
                         .HasColumnType("bit");
-
-                    b.Property<string>("Phase")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("Priorite")
                         .HasColumnType("int");
@@ -349,8 +341,6 @@ namespace IngeProjets.Migrations
                     b.HasIndex("AssigneAId");
 
                     b.HasIndex("DateEcheance");
-
-                    b.HasIndex("DependanceId");
 
                     b.HasIndex("EstArchive");
 
@@ -590,11 +580,6 @@ namespace IngeProjets.Migrations
                         .HasForeignKey("AssigneAId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("IngeProjets.Data.Models.Tache", "Dependance")
-                        .WithMany("TachesDependantes")
-                        .HasForeignKey("DependanceId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
                         .WithMany("Taches")
                         .HasForeignKey("ProjetId")
@@ -602,8 +587,6 @@ namespace IngeProjets.Migrations
                         .IsRequired();
 
                     b.Navigation("AssigneA");
-
-                    b.Navigation("Dependance");
 
                     b.Navigation("Projet");
                 });
@@ -688,11 +671,6 @@ namespace IngeProjets.Migrations
                     b.Navigation("Taches");
 
                     b.Navigation("Transactions");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.Tache", b =>
-                {
-                    b.Navigation("TachesDependantes");
                 });
 #pragma warning restore 612, 618
         }
