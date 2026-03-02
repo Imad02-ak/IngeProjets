@@ -32,6 +32,49 @@ document.addEventListener("DOMContentLoaded", () => {
         return res.json();
     }
 
+    // Resolve the locale string for the current language setting
+    function appLocale() {
+        return window._appLang === "en" ? "en-GB" : "fr-FR";
+    }
+
+    // Global date formatting utility (uses settings)
+    window.formatAppDate = function (dateStr, opts) {
+        if (!dateStr) return "—";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "—";
+        if (opts) return d.toLocaleDateString(appLocale(), opts);
+        const fmt = window._appDateFormat || "dd/MM/yyyy";
+        if (fmt === "yyyy-MM-dd") return d.toISOString().slice(0, 10);
+        if (fmt === "MM/dd/yyyy") {
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            return `${mm}/${dd}/${d.getFullYear()}`;
+        }
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        return `${dd}/${mm}/${d.getFullYear()}`;
+    };
+
+    // Global currency formatting utility
+    window.formatAppCurrency = function (amount) {
+        if (amount == null || isNaN(amount)) return "—";
+        const sym = window._appCurrencySymbol || "DA";
+        const num = Number(amount).toLocaleString(appLocale(), { maximumFractionDigits: 0 });
+        return `${num} ${sym}`;
+    };
+
+    // Budget display helper: shows value in millions with currency symbol
+    function fmtBudgetM(amount, decimals) {
+        const d = decimals ?? 1;
+        const sym = window._appCurrencySymbol || "DA";
+        return `${(amount / 1000000).toFixed(d)}M ${sym}`;
+    }
+
+    // Currency icon class based on current setting
+    function currencyIconClass() {
+        return (window._appCurrency || "DZD") === "EUR" ? "fa-euro-sign" : "fa-coins";
+    }
+
     let cachedProjects = [];
     let cachedTasks = [];
     let cachedUsers = [];
@@ -219,7 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="upcoming-item">
             <div class="upcoming-date">
               <div class="day">${date.getDate()}</div>
-              <div class="month">${date.toLocaleDateString("fr-FR", { month: "short" })}</div>
+              <div class="month">${date.toLocaleDateString(appLocale(), { month: "short" })}</div>
             </div>
             <div class="upcoming-info">
               <div class="upcoming-title">${t.titre}</div>
@@ -236,8 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 kpiValues[0].textContent = data.kpis.chantiersActifs;
                 kpiValues[1].textContent = data.kpis.projetsTermines;
                 kpiValues[2].textContent = data.kpis.alertes;
-                const budgetM = (data.kpis.budgetTotal / 1000000).toFixed(1);
-                kpiValues[3].textContent = `${budgetM}M €`;
+                kpiValues[3].textContent = fmtBudgetM(data.kpis.budgetTotal);
             }
         }
 
@@ -379,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .filter(t => t.statut !== "Terminee" && new Date(t.dateEcheance) >= now)
             .sort((a, b) => new Date(a.dateEcheance) - new Date(b.dateEcheance));
         const nextDeadline = upcoming.length > 0
-            ? new Date(upcoming[0].dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+            ? formatAppDate(upcoming[0].dateEcheance, { day: "numeric", month: "short" })
             : "—";
 
         const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
@@ -424,7 +466,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const periodEl = $("currentPeriod");
         if (periodEl) {
             const d = new Date(calendarYear, calendarMonth, 1);
-            periodEl.textContent = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+            periodEl.textContent = d.toLocaleDateString(appLocale(), { month: "long", year: "numeric" });
             periodEl.style.textTransform = "capitalize";
         }
     }
@@ -549,7 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="kanban-card-footer">
               <div class="kanban-card-assignee" title="${t.assigneA || 'Non assigné'}">${initials}</div>
-              <div class="kanban-card-due"><i class="fa-solid fa-clock"></i> ${new Date(t.dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</div>
+              <div class="kanban-card-due"><i class="fa-solid fa-clock"></i> ${formatAppDate(t.dateEcheance, { day: "numeric", month: "short" })}</div>
             </div>
           </div>`;
                 }).join("");
@@ -782,7 +824,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (task.type === "project") return "";
                         var s = task.statut;
                         var label = s === "AFaire" ? "À faire" : s === "EnCours" ? "En cours" : s === "EnRevue" ? "En revue" : s === "Terminee" ? "Terminée" : s;
-                        var color = task.isOverdue ? "#e50908" : s === "Terminee" ? "#3b82f6" : s === "EnCours" ? "#10b981" : "#f59e0b";
+                        var color = task.isOverdue ? "#e50908" : s === "Terminee" ? "#10b981" : s === "EnCours" ? "#1a1a2e" : s === "EnRevue" ? "#f59e0b" : "#d4b70c";
                         return '<span style="color:' + color + ';font-weight:600;font-size:11px">' + label + '</span>';
                     }
                 },
@@ -826,14 +868,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // Task bar class by priority
+            // Task bar class by status
             gantt.templates.task_class = function (start, end, task) {
                 var cls = [];
-                if (task.type === "project") cls.push("gantt-project-task");
-                if (task.priority === "Urgente") cls.push("gantt-priority-urgent");
-                else if (task.priority === "Haute") cls.push("gantt-priority-high");
-                else if (task.priority === "Moyenne") cls.push("gantt-priority-medium");
-                else cls.push("gantt-priority-low");
+                if (task.type === "project") { cls.push("gantt-project-task"); return cls.join(" "); }
+                if (task.isOverdue) cls.push("gantt-task-overdue");
+                else if (task.statut === "Terminee") cls.push("gantt-task-done");
+                else if (task.statut === "EnCours") cls.push("gantt-task-inprogress");
+                else if (task.statut === "EnRevue") cls.push("gantt-task-review");
+                else cls.push("gantt-task-todo");
                 return cls.join(" ");
             };
 
@@ -968,7 +1011,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const grouped = {};
         tasks.forEach(t => {
             const d = new Date(t.dateEcheance);
-            const key = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+            const key = d.toLocaleDateString(appLocale(), { month: "long", year: "numeric" });
             if (!grouped[key]) grouped[key] = [];
             grouped[key].push(t);
         });
@@ -980,7 +1023,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             grouped[monthLabel].forEach(t => {
                 const d = new Date(t.dateEcheance);
-                const dayStr = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
+                const dayStr = d.toLocaleDateString(appLocale(), { weekday: "short", day: "numeric" });
                 const sc = taskStatusMap[t.statut] || "todo";
                 const pc = prioriteCssMap[t.priorite] || "medium";
                 const statusLabel = t.statut === "AFaire" ? "À faire" : t.statut === "EnCours" ? "En cours" : t.statut === "EnRevue" ? "En revue" : "Terminée";
@@ -1029,9 +1072,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (budgetData) {
             const kpis = $$(".budget-kpi-value");
             if (kpis.length >= 4) {
-                kpis[0].textContent = `${(budgetData.budgetTotal / 1000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} €`;
-                kpis[1].textContent = `${(budgetData.depensesTotales / 1000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} €`;
-                kpis[2].textContent = `${(budgetData.restant / 1000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} €`;
+                kpis[0].textContent = fmtBudgetM(budgetData.budgetTotal, 0);
+                kpis[1].textContent = fmtBudgetM(budgetData.depensesTotales, 0);
+                kpis[2].textContent = fmtBudgetM(budgetData.restant, 0);
                 kpis[3].textContent = `${budgetData.depassements} projets`;
             }
         }
@@ -1043,9 +1086,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const st = pct > 100 ? "danger" : pct > 80 ? "warning" : "success";
                 return `<tr>
             <td><strong>${p.nom}</strong></td>
-            <td>${(p.budgetAlloue / 1000000).toFixed(2)} M€</td>
-            <td>${(p.depense / 1000000).toFixed(2)} M€</td>
-            <td>${(p.restant / 1000000).toFixed(2)} M€</td>
+            <td>${fmtBudgetM(p.budgetAlloue, 2)}</td>
+            <td>${fmtBudgetM(p.depense, 2)}</td>
+            <td>${fmtBudgetM(p.restant, 2)}</td>
             <td>
               <div class="progress-bar" style="width: 100px;"><div class="progress-fill" style="width: ${Math.min(pct, 100)}%; background: ${st === "danger" ? "var(--color-red)" : st === "warning" ? "var(--color-warning)" : "var(--color-success)"}"></div></div>
               <small>${pct}%</small>
@@ -1066,10 +1109,10 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="transaction-info">
             <div class="transaction-title">${t.libelle}</div>
-            <div class="transaction-date">${new Date(t.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</div>
+            <div class="transaction-date">${formatAppDate(t.date, { day: "numeric", month: "short", year: "numeric" })}</div>
           </div>
           <div class="transaction-amount ${isExpense ? "negative" : "positive"}">
-            ${isExpense ? "-" : "+"}${t.montant.toLocaleString("fr-FR")} €
+            ${isExpense ? "-" : "+"}${formatAppCurrency(t.montant)}
           </div>
         </div>`;
             }).join("");
@@ -1119,7 +1162,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: { display: true, text: "Millions €" },
+                            title: { display: true, text: `Millions ${window._appCurrencySymbol || "DA"}` },
                         },
                     },
                 },
@@ -1172,106 +1215,839 @@ document.addEventListener("DOMContentLoaded", () => {
     // ===========================
     // RENDER REPORTS
     // ===========================
-    async function renderReports() {
-        const projects = await loadProjects();
+    let cachedRapports = [];
 
-        const performanceList = $("performanceList");
-        if (performanceList) {
-            const topProjects = projects
-                .filter(p => p.statut !== "EnPlanification")
-                .sort((a, b) => b.avancement - a.avancement)
-                .slice(0, 5);
-            performanceList.innerHTML = topProjects.map((p, i) => `
-        <div class="performance-item">
-          <div class="performance-rank ${i < 3 ? "rank-" + (i + 1) : ""}">${i + 1}</div>
-          <div class="performance-info">
-            <div class="performance-name">${p.nom}</div>
-            <div class="performance-value">${p.avancement}% complété</div>
-          </div>
-          <div class="performance-score">${p.avancement}%</div>
-        </div>`).join("");
-        }
-
-        initReportsCharts();
+    async function loadRapports() {
+        const data = await api("/api/rapports");
+        if (data) cachedRapports = data;
+        return cachedRapports;
     }
 
-    function initReportsCharts() {
-        const trendsChartEl = $("trendsChart");
-        if (trendsChartEl && window.Chart) {
-            const ctx = trendsChartEl.getContext("2d");
+    async function renderReports() {
+        const projects = await loadProjects();
+        await loadRapports();
+        renderRapportsList();
+    }
 
-            if (trendsChartEl.chartInstance) {
-                trendsChartEl.chartInstance.destroy();
-            }
+    function renderRapportsList() {
+        const reportsList = $("reportsList");
+        if (!reportsList) return;
 
-            trendsChartEl.chartInstance = new Chart(ctx, {
-                type: "bar",
-                data: {
-                    labels: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin"],
-                    datasets: [
-                        {
-                            label: "Projets démarrés",
-                            data: [3, 2, 4, 1, 3, 2],
-                            backgroundColor: "#3b82f6",
-                        },
-                        {
-                            label: "Projets terminés",
-                            data: [2, 3, 2, 3, 4, 3],
-                            backgroundColor: "#10b981",
-                        },
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: "bottom" },
-                    },
-                },
-            });
+        if (cachedRapports.length === 0) {
+            reportsList.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;"><i class="fa-solid fa-file-circle-xmark" style="font-size:48px;color:var(--text-tertiary);display:block;margin-bottom:12px;"></i><p>Aucun rapport généré</p></div>';
+            return;
+        }
+
+        reportsList.innerHTML = cachedRapports.map(r => {
+            const typeIcons = {
+                Qualite: "fa-clipboard-check",
+                Personnalise: "fa-wand-magic-sparkles",
+                Bordereau: "fa-file-invoice",
+                Courrier: "fa-envelope-open-text",
+                ReceptionProvisoire: "fa-file-signature",
+                ReceptionDefinitive: "fa-file-circle-check"
+            };
+            const typeLabelsMap = {
+                Qualite: "Contrôle Qualité",
+                Personnalise: "Personnalisé",
+                Bordereau: "Bordereau",
+                Courrier: "Courrier",
+                ReceptionProvisoire: "Réception Provisoire",
+                ReceptionDefinitive: "Réception Définitive"
+            };
+            const icon = typeIcons[r.type] || "fa-file";
+            const typeLabel = typeLabelsMap[r.type] || r.type;
+            const date = formatAppDate(r.dateGeneration, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+            return `<div class="rapport-list-item">
+                <div class="rapport-list-icon"><i class="fa-solid ${icon}"></i></div>
+                <div class="rapport-list-info">
+                    <div class="rapport-list-title">${esc(r.titre)}</div>
+                    <div class="rapport-list-meta">
+                        <span class="rapport-list-type">${typeLabel}</span>
+                        ${r.projet ? `<span><i class="fa-solid fa-folder"></i> ${esc(r.projet)}</span>` : ''}
+                        <span><i class="fa-solid fa-calendar"></i> ${date}</span>
+                        ${r.generePar ? `<span><i class="fa-solid fa-user"></i> ${esc(r.generePar)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="rapport-list-actions">
+                    <button class="btn btn-sm btn-outline" data-view-rapport-id="${r.id}" title="Voir / Imprimer"><i class="fa-solid fa-eye"></i></button>
+                    <button class="btn btn-sm btn-outline btn-danger-outline" data-delete-rapport-id="${r.id}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    // --- Dynamic form fields per rapport type ---
+    function getRapportFormFields(type) {
+        switch (type) {
+            case "Qualite":
+                return `
+                    <div class="form-group"><label class="form-label">Objet du contrôle *</label><input type="text" class="form-input" id="rf_objetControle" required placeholder="Ex: Vérification béton – Bloc A" /></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Date du contrôle *</label><input type="date" class="form-input" id="rf_dateControle" required /></div>
+                        <div class="form-group"><label class="form-label">Lieu du contrôle</label><input type="text" class="form-input" id="rf_lieuControle" placeholder="Ex: Chantier Lot 3" /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Contrôleur</label><input type="text" class="form-input" id="rf_controleur" placeholder="Nom du contrôleur" /></div>
+                    <div class="form-group"><label class="form-label">Résultat du contrôle *</label>
+                        <select class="form-select" id="rf_resultat">
+                            <option value="Conforme">Conforme</option>
+                            <option value="Non conforme">Non conforme</option>
+                            <option value="Partiellement conforme">Partiellement conforme</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Observations / Non-conformités</label><textarea class="form-textarea" id="rf_observations" rows="4" placeholder="Détail des observations..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Actions correctives recommandées</label><textarea class="form-textarea" id="rf_actions" rows="3" placeholder="Actions à entreprendre..."></textarea></div>`;
+            case "Bordereau":
+                return `
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Numéro du bordereau</label><input type="text" class="form-input" id="rf_numeroBordereau" placeholder="Ex: BRD-2026-001" /></div>
+                        <div class="form-group"><label class="form-label">Date du bordereau *</label><input type="date" class="form-input" id="rf_dateBordereau" required /></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destinataire" required placeholder="Ex: Maître d'ouvrage" /></div>
+                        <div class="form-group"><label class="form-label">Expéditeur</label><input type="text" class="form-input" id="rf_expediteur" placeholder="Ex: Entreprise XYZ" /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Objet *</label><input type="text" class="form-input" id="rf_objetBordereau" required placeholder="Objet du bordereau d'envoi" /></div>
+                    <div class="form-group"><label class="form-label">Liste des pièces jointes</label><textarea class="form-textarea" id="rf_piecesJointes" rows="4" placeholder="1. Plan d'exécution\n2. Note de calcul\n3. ..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsBordereau" rows="3" placeholder="Observations éventuelles..."></textarea></div>`;
+            case "Courrier":
+                return `
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refCourrier" placeholder="Ex: COR-2026-045" /></div>
+                        <div class="form-group"><label class="form-label">Date du courrier *</label><input type="date" class="form-input" id="rf_dateCourrier" required /></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destCourrier" required placeholder="Nom et qualité du destinataire" /></div>
+                        <div class="form-group"><label class="form-label">Expéditeur *</label><input type="text" class="form-input" id="rf_expCourrier" required placeholder="Nom et qualité de l'expéditeur" /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Objet *</label><input type="text" class="form-input" id="rf_objetCourrier" required placeholder="Objet du courrier" /></div>
+                    <div class="form-group"><label class="form-label">Corps du courrier *</label><textarea class="form-textarea" id="rf_corpsCourrier" rows="8" required placeholder="Monsieur / Madame,\n\nNous avons l'honneur de..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Pièces jointes</label><input type="text" class="form-input" id="rf_pjCourrier" placeholder="Liste des pièces jointes" /></div>`;
+            case "ReceptionProvisoire":
+                return `
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refRP" placeholder="Ex: RP-2026-001" /></div>
+                        <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRP" required /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Maître d'ouvrage *</label><input type="text" class="form-input" id="rf_moRP" required placeholder="Nom du maître d'ouvrage" /></div>
+                    <div class="form-group"><label class="form-label">Entreprise réalisatrice *</label><input type="text" class="form-input" id="rf_entrepriseRP" required placeholder="Nom de l'entreprise" /></div>
+                    <div class="form-group"><label class="form-label">Désignation des travaux *</label><textarea class="form-textarea" id="rf_designationRP" rows="3" required placeholder="Description des travaux réalisés..."></textarea></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Date début des travaux</label><input type="date" class="form-input" id="rf_dateDebutRP" /></div>
+                        <div class="form-group"><label class="form-label">Date fin des travaux</label><input type="date" class="form-input" id="rf_dateFinRP" /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Montant des travaux (€)</label><input type="number" class="form-input" id="rf_montantRP" placeholder="Montant en euros" /></div>
+                    <div class="form-group"><label class="form-label">Réserves éventuelles</label><textarea class="form-textarea" id="rf_reservesRP" rows="3" placeholder="Réserves constatées lors de la visite..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRP" rows="3" placeholder="Observations complémentaires..."></textarea></div>`;
+            case "ReceptionDefinitive":
+                return `
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refRD" placeholder="Ex: RD-2026-001" /></div>
+                        <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRD" required /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Maître d'ouvrage *</label><input type="text" class="form-input" id="rf_moRD" required placeholder="Nom du maître d'ouvrage" /></div>
+                    <div class="form-group"><label class="form-label">Entreprise réalisatrice *</label><input type="text" class="form-input" id="rf_entrepriseRD" required placeholder="Nom de l'entreprise" /></div>
+                    <div class="form-group"><label class="form-label">Désignation des travaux *</label><textarea class="form-textarea" id="rf_designationRD" rows="3" required placeholder="Description des travaux réalisés..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Date de réception provisoire</label><input type="date" class="form-input" id="rf_dateRProvRD" /></div>
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Durée de garantie (mois)</label><input type="number" class="form-input" id="rf_dureeGarantieRD" placeholder="Ex: 12" /></div>
+                        <div class="form-group"><label class="form-label">Montant des travaux (€)</label><input type="number" class="form-input" id="rf_montantRD" placeholder="Montant en euros" /></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">État des réserves levées</label>
+                        <select class="form-select" id="rf_reservesLeveesRD">
+                            <option value="Toutes les réserves ont été levées">Toutes les réserves ont été levées</option>
+                            <option value="Réserves partiellement levées">Réserves partiellement levées</option>
+                            <option value="Aucune réserve">Aucune réserve</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRD" rows="3" placeholder="Observations complémentaires..."></textarea></div>`;
+            case "Personnalise":
+                return `
+                    <div class="form-group"><label class="form-label">Contenu du rapport *</label><textarea class="form-textarea" id="rf_contenuPerso" rows="12" required placeholder="Rédigez le contenu de votre rapport personnalisé..."></textarea></div>`;
+            default:
+                return '';
+        }
+    }
+
+    // --- Collect form data as JSON per type ---
+    function collectRapportFormData(type) {
+        const val = (id) => $(id)?.value?.trim() || "";
+        switch (type) {
+            case "Qualite":
+                return JSON.stringify({
+                    objetControle: val("rf_objetControle"),
+                    dateControle: val("rf_dateControle"),
+                    lieuControle: val("rf_lieuControle"),
+                    controleur: val("rf_controleur"),
+                    resultat: val("rf_resultat"),
+                    observations: val("rf_observations"),
+                    actions: val("rf_actions")
+                });
+            case "Bordereau":
+                return JSON.stringify({
+                    numeroBordereau: val("rf_numeroBordereau"),
+                    dateBordereau: val("rf_dateBordereau"),
+                    destinataire: val("rf_destinataire"),
+                    expediteur: val("rf_expediteur"),
+                    objetBordereau: val("rf_objetBordereau"),
+                    piecesJointes: val("rf_piecesJointes"),
+                    observations: val("rf_observationsBordereau")
+                });
+            case "Courrier":
+                return JSON.stringify({
+                    refCourrier: val("rf_refCourrier"),
+                    dateCourrier: val("rf_dateCourrier"),
+                    destinataire: val("rf_destCourrier"),
+                    expediteur: val("rf_expCourrier"),
+                    objet: val("rf_objetCourrier"),
+                    corps: val("rf_corpsCourrier"),
+                    piecesJointes: val("rf_pjCourrier")
+                });
+            case "ReceptionProvisoire":
+                return JSON.stringify({
+                    reference: val("rf_refRP"),
+                    dateDemande: val("rf_dateRP"),
+                    maitreOuvrage: val("rf_moRP"),
+                    entreprise: val("rf_entrepriseRP"),
+                    designation: val("rf_designationRP"),
+                    dateDebut: val("rf_dateDebutRP"),
+                    dateFin: val("rf_dateFinRP"),
+                    montant: val("rf_montantRP"),
+                    reserves: val("rf_reservesRP"),
+                    observations: val("rf_observationsRP")
+                });
+            case "ReceptionDefinitive":
+                return JSON.stringify({
+                    reference: val("rf_refRD"),
+                    dateDemande: val("rf_dateRD"),
+                    maitreOuvrage: val("rf_moRD"),
+                    entreprise: val("rf_entrepriseRD"),
+                    designation: val("rf_designationRD"),
+                    dateReceptionProvisoire: val("rf_dateRProvRD"),
+                    dureeGarantie: val("rf_dureeGarantieRD"),
+                    montant: val("rf_montantRD"),
+                    reservesLevees: val("rf_reservesLeveesRD"),
+                    observations: val("rf_observationsRD")
+                });
+            case "Personnalise":
+                return JSON.stringify({ contenu: val("rf_contenuPerso") });
+            default:
+                return "{}";
+        }
+    }
+
+    // --- Generate printable HTML per type ---
+    function generateRapportHTML(rapport) {
+        const d = rapport.donneesFormulaire ? JSON.parse(rapport.donneesFormulaire) : {};
+        const projet = rapport.projet || "—";
+        const date = formatAppDate(rapport.dateGeneration, { day: "numeric", month: "long", year: "numeric" });
+        const generePar = rapport.generePar || "—";
+
+        let headerHTML = `
+            <div class="rapport-header">
+                <div class="rapport-logo"><img src="/images/logo.png" alt="Logo" style="height:50px;" /></div>
+                <div class="rapport-header-info">
+                    <h1 class="rapport-main-title">${esc(rapport.titre)}</h1>
+                    <p class="rapport-sub">${esc(getTypeLabel(rapport.type))}</p>
+                </div>
+                <div class="rapport-date-block">
+                    <span>${date}</span>
+                </div>
+            </div>
+            <div class="rapport-meta-bar">
+                <span><strong>Projet :</strong> ${esc(projet)}</span>
+                <span><strong>Généré par :</strong> ${esc(generePar)}</span>
+            </div>
+            <hr class="rapport-divider" />`;
+
+        let bodyHTML = "";
+
+        switch (rapport.type) {
+            case "Qualite":
+                bodyHTML = `
+                    <table class="rapport-table">
+                        <tr><th>Objet du contrôle</th><td>${esc(d.objetControle)}</td></tr>
+                        <tr><th>Date du contrôle</th><td>${formatAppDate(d.dateControle)}</td></tr>
+                        <tr><th>Lieu</th><td>${esc(d.lieuControle)}</td></tr>
+                        <tr><th>Contrôleur</th><td>${esc(d.controleur)}</td></tr>
+                        <tr><th>Résultat</th><td><strong>${esc(d.resultat)}</strong></td></tr>
+                    </table>
+                    ${d.observations ? `<h3>Observations / Non-conformités</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
+                    ${d.actions ? `<h3>Actions correctives recommandées</h3><p class="rapport-text">${esc(d.actions).replace(/\n/g, '<br>')}</p>` : ''}`;
+                break;
+            case "Bordereau":
+                bodyHTML = `
+                    <table class="rapport-table">
+                        <tr><th>N° Bordereau</th><td>${esc(d.numeroBordereau)}</td></tr>
+                        <tr><th>Date</th><td>${formatAppDate(d.dateBordereau)}</td></tr>
+                        <tr><th>Destinataire</th><td>${esc(d.destinataire)}</td></tr>
+                        <tr><th>Expéditeur</th><td>${esc(d.expediteur)}</td></tr>
+                        <tr><th>Objet</th><td>${esc(d.objetBordereau)}</td></tr>
+                    </table>
+                    ${d.piecesJointes ? `<h3>Pièces jointes</h3><p class="rapport-text">${esc(d.piecesJointes).replace(/\n/g, '<br>')}</p>` : ''}
+                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}`;
+                break;
+            case "Courrier":
+                bodyHTML = `
+                    <table class="rapport-table">
+                        <tr><th>Référence</th><td>${esc(d.refCourrier)}</td></tr>
+                        <tr><th>Date</th><td>${formatAppDate(d.dateCourrier)}</td></tr>
+                        <tr><th>Destinataire</th><td>${esc(d.destinataire)}</td></tr>
+                        <tr><th>Expéditeur</th><td>${esc(d.expediteur)}</td></tr>
+                        <tr><th>Objet</th><td>${esc(d.objet)}</td></tr>
+                    </table>
+                    <div class="rapport-courrier-body">
+                        <p class="rapport-text">${esc(d.corps).replace(/\n/g, '<br>')}</p>
+                    </div>
+                    ${d.piecesJointes ? `<p class="rapport-pj"><strong>PJ :</strong> ${esc(d.piecesJointes)}</p>` : ''}`;
+                break;
+            case "ReceptionProvisoire":
+                bodyHTML = `
+                    <table class="rapport-table">
+                        <tr><th>Référence</th><td>${esc(d.reference)}</td></tr>
+                        <tr><th>Date de la demande</th><td>${formatAppDate(d.dateDemande)}</td></tr>
+                        <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
+                        <tr><th>Entreprise réalisatrice</th><td>${esc(d.entreprise)}</td></tr>
+                        <tr><th>Désignation des travaux</th><td>${esc(d.designation)}</td></tr>
+                        <tr><th>Date début des travaux</th><td>${formatAppDate(d.dateDebut)}</td></tr>
+                        <tr><th>Date fin des travaux</th><td>${formatAppDate(d.dateFin)}</td></tr>
+                        <tr><th>Montant des travaux</th><td>${d.montant ? formatAppCurrency(parseFloat(d.montant)) : "—"}</td></tr>
+                    </table>
+                    ${d.reserves ? `<h3>Réserves éventuelles</h3><p class="rapport-text">${esc(d.reserves).replace(/\n/g, '<br>')}</p>` : ''}
+                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
+                    <div class="rapport-signatures">
+                        <div class="rapport-signature-block"><p>Le Maître d'ouvrage</p><div class="signature-line"></div></div>
+                        <div class="rapport-signature-block"><p>L'Entreprise</p><div class="signature-line"></div></div>
+                    </div>`;
+                break;
+            case "ReceptionDefinitive":
+                bodyHTML = `
+                    <table class="rapport-table">
+                        <tr><th>Référence</th><td>${esc(d.reference)}</td></tr>
+                        <tr><th>Date de la demande</th><td>${formatAppDate(d.dateDemande)}</td></tr>
+                        <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
+                        <tr><th>Entreprise réalisatrice</th><td>${esc(d.entreprise)}</td></tr>
+                        <tr><th>Désignation des travaux</th><td>${esc(d.designation)}</td></tr>
+                        <tr><th>Date de réception provisoire</th><td>${formatAppDate(d.dateReceptionProvisoire)}</td></tr>
+                        <tr><th>Durée de garantie</th><td>${d.dureeGarantie ? d.dureeGarantie + " mois" : "—"}</td></tr>
+                        <tr><th>Montant des travaux</th><td>${d.montant ? formatAppCurrency(parseFloat(d.montant)) : "—"}</td></tr>
+                        <tr><th>État des réserves</th><td>${esc(d.reservesLevees)}</td></tr>
+                    </table>
+                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
+                    <div class="rapport-signatures">
+                        <div class="rapport-signature-block"><p>Le Maître d'ouvrage</p><div class="signature-line"></div></div>
+                        <div class="rapport-signature-block"><p>L'Entreprise</p><div class="signature-line"></div></div>
+                    </div>`;
+                break;
+            case "Personnalise":
+                bodyHTML = `<div class="rapport-text">${esc(d.contenu || rapport.contenu || "").replace(/\n/g, '<br>')}</div>`;
+                break;
+            default:
+                bodyHTML = `<p>${esc(rapport.contenu || "")}</p>`;
+        }
+
+        return headerHTML + bodyHTML;
+    }
+
+    function getTypeLabel(type) {
+        const map = {
+            Qualite: "Contrôle Qualité",
+            Personnalise: "Rapport Personnalisé",
+            Bordereau: "Bordereau",
+            Courrier: "Courrier",
+            ReceptionProvisoire: "Demande de Réception Provisoire",
+            ReceptionDefinitive: "Demande de Réception Définitive"
+        };
+        return map[type] || type;
+    }
+
+    // --- Open rapport form ---
+    document.addEventListener("click", (e) => {
+        const openBtn = e.target.closest("[data-open-rapport]");
+        if (openBtn) {
+            e.preventDefault();
+            const type = openBtn.dataset.openRapport;
+            openRapportForm(type);
+            return;
+        }
+
+        const viewBtn = e.target.closest("[data-view-rapport-id]");
+        if (viewBtn) {
+            e.stopPropagation();
+            viewRapport(parseInt(viewBtn.dataset.viewRapportId));
+            return;
+        }
+
+        const deleteBtn = e.target.closest("[data-delete-rapport-id]");
+        if (deleteBtn) {
+            e.stopPropagation();
+            deleteRapport(parseInt(deleteBtn.dataset.deleteRapportId));
+            return;
+        }
+    });
+
+    function openRapportForm(type) {
+        const modal = $("rapportFormModal");
+        if (!modal) return;
+
+        $("rapportType").value = type;
+        $("rapportFormTitle").innerHTML = `<i class="fa-solid fa-file-lines"></i> ${getTypeLabel(type)}`;
+        $("rapportTitre").value = "";
+        $("rapportDynamicFields").innerHTML = getRapportFormFields(type);
+
+        // Populate project dropdown
+        const projSel = $("rapportProjet");
+        if (projSel) {
+            projSel.innerHTML = '<option value="">Aucun projet</option>' +
+                cachedProjects.map(p => `<option value="${p.id}">${p.nom}</option>`).join("");
+        }
+
+        modal.classList.add("active");
+    }
+
+    // Close rapport form modal
+    $("closeRapportFormModal")?.addEventListener("click", () => $("rapportFormModal")?.classList.remove("active"));
+    $("cancelRapportFormBtn")?.addEventListener("click", () => $("rapportFormModal")?.classList.remove("active"));
+    $("rapportFormModal")?.addEventListener("click", (e) => { if (e.target.id === "rapportFormModal") $("rapportFormModal").classList.remove("active"); });
+
+    // Save rapport
+    $("saveRapportBtn")?.addEventListener("click", async () => {
+        const type = $("rapportType").value;
+        const titre = $("rapportTitre").value.trim();
+        if (!titre) {
+            showToast("error", "Erreur", "Le titre est requis.");
+            return;
+        }
+
+        const donneesFormulaire = collectRapportFormData(type);
+        const projetId = $("rapportProjet").value ? parseInt($("rapportProjet").value) : null;
+
+        const body = {
+            titre,
+            type,
+            contenu: type === "Personnalise" ? ($("rf_contenuPerso")?.value || "") : null,
+            donneesFormulaire,
+            projetId
+        };
+
+        const result = await api("/api/rapports", { method: "POST", body: JSON.stringify(body) });
+        if (result) {
+            showToast("success", "Rapport généré", "Le rapport a été créé avec succès");
+            cachedRapports = [];
+            await loadRapports();
+            renderRapportsList();
+
+            $("rapportFormModal")?.classList.remove("active");
+
+            // Open the generated report for viewing
+            viewRapportData(result);
+        } else {
+            showToast("error", "Erreur", "Impossible de créer le rapport.");
+        }
+    });
+
+    // View rapport
+    async function viewRapport(rapportId) {
+        const rapport = await api(`/api/rapports/${rapportId}`);
+        if (!rapport) return;
+        viewRapportData(rapport);
+    }
+
+    function viewRapportData(rapport) {
+        const modal = $("rapportViewModal");
+        if (!modal) return;
+
+        $("rapportViewTitle").innerHTML = `<i class="fa-solid fa-eye"></i> ${esc(rapport.titre)}`;
+        $("rapportPrintArea").innerHTML = generateRapportHTML(rapport);
+        modal.classList.add("active");
+    }
+
+    // Close view modal
+    $("closeRapportViewModal")?.addEventListener("click", () => $("rapportViewModal")?.classList.remove("active"));
+    $("closeRapportViewBtn")?.addEventListener("click", () => $("rapportViewModal")?.classList.remove("active"));
+    $("rapportViewModal")?.addEventListener("click", (e) => { if (e.target.id === "rapportViewModal") $("rapportViewModal").classList.remove("active"); });
+
+    // Print rapport
+    $("printRapportBtn")?.addEventListener("click", () => {
+        const printArea = $("rapportPrintArea");
+        if (!printArea) return;
+
+        const printWindow = window.open("", "_blank");
+        printWindow.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Impression Rapport</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px 40px; color: #1a1a2e; font-size: 13px; line-height: 1.6; }
+        .rapport-header { display: flex; align-items: center; gap: 20px; margin-bottom: 16px; border-bottom: 3px solid #e50908; padding-bottom: 16px; }
+        .rapport-header img { height: 50px; }
+        .rapport-header-info { flex: 1; }
+        .rapport-main-title { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+        .rapport-sub { font-size: 13px; color: #6b7280; margin-top: 2px; }
+        .rapport-date-block { text-align: right; font-size: 12px; color: #6b7280; }
+        .rapport-meta-bar { display: flex; gap: 32px; font-size: 12px; color: #4b5563; margin-bottom: 16px; padding: 8px 12px; background: #f9fafb; border-radius: 6px; }
+        .rapport-divider { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+        .rapport-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .rapport-table th, .rapport-table td { padding: 10px 14px; text-align: left; border: 1px solid #d1d5db; font-size: 12px; }
+        .rapport-table th { background: #f3f4f6; width: 220px; font-weight: 600; color: #374151; }
+        .rapport-table td { color: #1a1a2e; }
+        h3 { font-size: 14px; margin: 20px 0 8px; color: #1a1a2e; border-left: 3px solid #e50908; padding-left: 10px; }
+        .rapport-text { font-size: 12px; color: #374151; white-space: pre-wrap; line-height: 1.7; }
+        .rapport-courrier-body { padding: 20px 0; min-height: 200px; }
+        .rapport-pj { margin-top: 16px; font-size: 11px; color: #6b7280; }
+        .rapport-signatures { display: flex; justify-content: space-between; margin-top: 60px; gap: 40px; }
+        .rapport-signature-block { text-align: center; flex: 1; }
+        .rapport-signature-block p { font-weight: 600; margin-bottom: 50px; font-size: 12px; }
+        .signature-line { border-top: 1px solid #9ca3af; width: 200px; margin: 0 auto; }
+        @@media print { body { padding: 15px 20px; } }
+    </style>
+</head>
+<body>${printArea.innerHTML}</body>
+</html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => { printWindow.print(); }, 300);
+    });
+
+    // Delete rapport
+    async function deleteRapport(rapportId) {
+        if (!confirm("Êtes-vous sûr de vouloir supprimer ce rapport ?")) return;
+        const result = await api(`/api/rapports/${rapportId}`, { method: "DELETE" });
+        if (result !== null) {
+            showToast("success", "Rapport supprimé", "Le rapport a été supprimé");
+            cachedRapports = [];
+            await loadRapports();
+            renderRapportsList();
+        } else {
+            showToast("error", "Erreur", "Impossible de supprimer le rapport.");
         }
     }
 
     // ===========================
     // RENDER USERS
     // ===========================
+    let cachedPendingUsers = [];
+
+    const roleLabelsUser = {
+        Gerant: "Gérant", CoGerant: "Co-Gérant", DirecteurTechnique: "Directeur Technique",
+        Ingenieur: "Ingénieur", Secretaire: "Secrétaire", Inconnu: "Non défini"
+    };
+
+    const roleColors = {
+        Gerant: "#e50908", CoGerant: "#f59e0b", DirecteurTechnique: "#3b82f6",
+        Ingenieur: "#10b981", Secretaire: "#8b5cf6", Inconnu: "#9ca3af"
+    };
+
+    const rolePermissions = {
+        Gerant: ["Gestion complète des projets", "Gestion des utilisateurs", "Approbation des inscriptions", "Gestion budgétaire", "Rapports et exports", "Configuration système"],
+        CoGerant: ["Gestion des projets", "Approbation des inscriptions", "Gestion budgétaire", "Rapports et exports"],
+        DirecteurTechnique: ["Supervision technique des projets", "Gestion du planning", "Contrôle qualité", "Rapports techniques"],
+        Ingenieur: ["Suivi des tâches assignées", "Mise à jour progression", "Consultation des projets", "Rapports de terrain"],
+        Secretaire: ["Gestion documentaire", "Saisie des données", "Consultation des projets", "Courriers et bordereaux"]
+    };
+
+    async function loadPendingUsers() {
+        const data = await api("/api/users/pending");
+        if (data) cachedPendingUsers = data;
+        return cachedPendingUsers;
+    }
+
     async function renderUsers() {
         const users = await loadUsers();
+        await loadPendingUsers();
+        renderUsersGrid(users);
+        renderPendingList();
+        renderTeams(users);
+        renderRoles();
+        updateUserStats(users);
+    }
+
+    function getFilteredUsers() {
+        const search = ($("userSearch")?.value || "").toLowerCase();
+        const roleFilter = $("filterRole")?.value || "";
+
+        return cachedUsers.filter(u => {
+            if (search && !u.nomComplet.toLowerCase().includes(search) && !u.email.toLowerCase().includes(search) && !(u.poste || "").toLowerCase().includes(search)) return false;
+            if (roleFilter && u.role !== roleFilter) return false;
+            return true;
+        });
+    }
+
+    function renderUsersGrid(users) {
+        const filtered = users || getFilteredUsers();
         const usersGrid = $("usersGrid");
-        if (usersGrid) {
-            usersGrid.innerHTML = users.map(u => {
-                const initials = u.nomComplet.split(" ").map(n => n[0]).join("");
-                return `
-        <div class="user-card">
-          <div class="user-avatar">${initials}</div>
-          <div class="user-info">
-            <div class="user-name">${u.nomComplet}</div>
-            <div class="user-role">${u.role}</div>
-            <div class="user-meta">
-              <span><i class="fa-solid fa-envelope"></i> ${u.email}</span>
-            </div>
-            <span class="user-status ${u.estActif ? 'online' : 'offline'}">${u.estActif ? 'Actif' : 'Inactif'}</span>
-          </div>
-        </div>`;
-            }).join("");
+        if (!usersGrid) return;
+
+        if (filtered.length === 0) {
+            usersGrid.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;grid-column:1/-1;"><i class="fa-solid fa-user-slash" style="font-size:48px;color:var(--text-tertiary);display:block;margin-bottom:12px;"></i><p>Aucun utilisateur trouvé</p></div>';
+            return;
         }
 
-        const statValues = $$(".user-stat-value");
-        if (statValues.length >= 2) {
-            statValues[0].textContent = users.length;
-            statValues[1].textContent = users.filter(u => u.estActif).length;
+        usersGrid.innerHTML = filtered.map(u => {
+            const initials = u.nomComplet.split(" ").map(n => n[0]).join("").substring(0, 2);
+            const roleLabel = roleLabelsUser[u.role] || u.role;
+            const color = roleColors[u.role] || "#9ca3af";
+            const date = formatAppDate(u.dateCreation, { day: "numeric", month: "short", year: "numeric" });
+            return `
+        <div class="user-card">
+          <div class="user-avatar" style="background:${color}20;color:${color}">${initials}</div>
+          <div class="user-info">
+            <div class="user-name">${esc(u.nomComplet)}</div>
+            <div class="user-role" style="color:${color}"><i class="fa-solid fa-shield-halved"></i> ${roleLabel}</div>
+            ${u.poste ? `<div class="user-poste"><i class="fa-solid fa-briefcase"></i> ${esc(u.poste)}</div>` : ''}
+            <div class="user-meta">
+              <span><i class="fa-solid fa-envelope"></i> ${esc(u.email)}</span>
+              <span><i class="fa-solid fa-calendar"></i> ${date}</span>
+            </div>
+            <span class="user-status online">Actif</span>
+          </div>
+        </div>`;
+        }).join("");
+    }
+
+    function updateUserStats(users) {
+        const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+        el("statTotalUsers", users.length);
+        el("statActiveUsers", users.filter(u => u.estActif).length);
+        el("statPendingUsers", cachedPendingUsers.length);
+
+        const badge = $("pendingBadge");
+        if (badge) {
+            if (cachedPendingUsers.length > 0) {
+                badge.textContent = cachedPendingUsers.length;
+                badge.style.display = "inline-flex";
+            } else {
+                badge.style.display = "none";
+            }
         }
     }
 
-    // Users tabs
+    // --- User search and filter ---
+    $("userSearch")?.addEventListener("input", () => renderUsersGrid(getFilteredUsers()));
+    $("filterRole")?.addEventListener("change", () => renderUsersGrid(getFilteredUsers()));
+
+    // --- Pending registrations ---
+    function renderPendingList() {
+        const container = $("pendingList");
+        if (!container) return;
+
+        if (cachedPendingUsers.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;"><i class="fa-solid fa-check-circle" style="font-size:48px;color:#10b981;display:block;margin-bottom:12px;"></i><p>Aucune demande en attente</p></div>';
+            return;
+        }
+
+        container.innerHTML = cachedPendingUsers.map(u => {
+            const initials = u.nomComplet.split(" ").map(n => n[0]).join("").substring(0, 2);
+            const date = formatAppDate(u.dateCreation, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+            return `
+            <div class="pending-user-item" data-user-id="${u.id}">
+                <div class="pending-user-avatar">${initials}</div>
+                <div class="pending-user-info">
+                    <div class="pending-user-name">${esc(u.nomComplet)}</div>
+                    <div class="pending-user-email"><i class="fa-solid fa-envelope"></i> ${esc(u.email)}</div>
+                    <div class="pending-user-date"><i class="fa-solid fa-clock"></i> Inscrit le ${date}</div>
+                </div>
+                <div class="pending-user-actions">
+                    <select class="filter-select pending-role-select" id="pendingRole_${u.id}">
+                        <option value="">Choisir un rôle...</option>
+                        <option value="Ingenieur">Ingénieur</option>
+                        <option value="DirecteurTechnique">Directeur Technique</option>
+                        <option value="Secretaire">Secrétaire</option>
+                        <option value="CoGerant">Co-Gérant</option>
+                    </select>
+                    <input type="text" class="form-input pending-poste-input" id="pendingPoste_${u.id}" placeholder="Poste (optionnel)" style="width:160px;" />
+                    <button class="btn btn-sm btn-success" data-approve-user="${u.id}"><i class="fa-solid fa-check"></i> Accepter</button>
+                    <button class="btn btn-sm btn-danger" data-refuse-user="${u.id}"><i class="fa-solid fa-times"></i> Refuser</button>
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    // Approve / Refuse handlers
+    document.addEventListener("click", async (e) => {
+        const approveBtn = e.target.closest("[data-approve-user]");
+        if (approveBtn) {
+            const userId = approveBtn.dataset.approveUser;
+            const role = $(`pendingRole_${userId}`)?.value;
+            const poste = $(`pendingPoste_${userId}`)?.value?.trim() || null;
+
+            if (!role) {
+                showToast("error", "Erreur", "Veuillez choisir un rôle avant d'accepter.");
+                return;
+            }
+
+            const result = await api(`/api/users/${userId}/approve`, {
+                method: "POST",
+                body: JSON.stringify({ role, poste })
+            });
+
+            if (result) {
+                showToast("success", "Utilisateur approuvé", "L'inscription a été acceptée.");
+                cachedUsers = []; cachedPendingUsers = [];
+                await renderUsers();
+            } else {
+                showToast("error", "Erreur", "Impossible d'approuver l'utilisateur.");
+            }
+            return;
+        }
+
+        const refuseBtn = e.target.closest("[data-refuse-user]");
+        if (refuseBtn) {
+            const userId = refuseBtn.dataset.refuseUser;
+            if (!confirm("Êtes-vous sûr de vouloir refuser cette inscription ?")) return;
+
+            const result = await api(`/api/users/${userId}/refuse`, { method: "DELETE" });
+            if (result !== null) {
+                showToast("success", "Inscription refusée", "La demande a été supprimée.");
+                cachedPendingUsers = [];
+                await renderUsers();
+            } else {
+                showToast("error", "Erreur", "Impossible de refuser l'inscription.");
+            }
+            return;
+        }
+    });
+
+    // --- Teams panel: group users by role ---
+    function renderTeams(users) {
+        const teamsGrid = $("teamsGrid");
+        if (!teamsGrid) return;
+
+        const groups = {};
+        users.forEach(u => {
+            const role = u.role || "Inconnu";
+            if (!groups[role]) groups[role] = [];
+            groups[role].push(u);
+        });
+
+        teamsGrid.innerHTML = Object.keys(groups).map(role => {
+            const members = groups[role];
+            const label = roleLabelsUser[role] || role;
+            const color = roleColors[role] || "#9ca3af";
+            return `
+            <div class="card team-card">
+                <div class="team-card-header" style="border-left:4px solid ${color};">
+                    <div class="team-card-title"><i class="fa-solid fa-people-group" style="color:${color}"></i> ${label}</div>
+                    <span class="team-card-count">${members.length} membre${members.length > 1 ? 's' : ''}</span>
+                </div>
+                <div class="team-members-list">
+                    ${members.map(m => {
+                        const init = m.nomComplet.split(" ").map(n => n[0]).join("").substring(0, 2);
+                        return `<div class="team-member-item">
+                            <div class="team-member-avatar" style="background:${color}20;color:${color}">${init}</div>
+                            <div class="team-member-info">
+                                <span class="team-member-name">${esc(m.nomComplet)}</span>
+                                <span class="team-member-email">${esc(m.email)}</span>
+                                ${m.poste ? `<span class="team-member-poste">${esc(m.poste)}</span>` : ''}
+                            </div>
+                        </div>`;
+                    }).join("")}
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    // --- Roles & Permissions panel ---
+    function renderRoles() {
+        const rolesList = $("rolesList");
+        if (!rolesList) return;
+
+        const roles = Object.keys(rolePermissions);
+        rolesList.innerHTML = roles.map(role => {
+            const label = roleLabelsUser[role] || role;
+            const color = roleColors[role] || "#9ca3af";
+            const perms = rolePermissions[role] || [];
+            const count = cachedUsers.filter(u => u.role === role).length;
+
+            return `
+            <div class="card role-card">
+                <div class="role-card-header">
+                    <div class="role-card-title" style="color:${color}">
+                        <i class="fa-solid fa-shield-halved"></i> ${label}
+                    </div>
+                    <span class="role-card-count">${count} utilisateur${count > 1 ? 's' : ''}</span>
+                </div>
+                <div class="role-permissions-list">
+                    ${perms.map(p => `<div class="role-perm-item"><i class="fa-solid fa-check" style="color:#10b981"></i> ${esc(p)}</div>`).join("")}
+                </div>
+            </div>`;
+        }).join("");
+    }
+
+    // --- Export users ---
+    $("exportUsersBtn")?.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/users/export");
+            if (!res.ok) throw new Error();
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "Utilisateurs.xlsx";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast("success", "Export réussi", "Le fichier Excel a été téléchargé.");
+        } catch {
+            showToast("error", "Erreur", "Impossible d'exporter les utilisateurs.");
+        }
+    });
+
+    // --- Import users ---
+    $("importUsersFile")?.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch("/api/users/import", { method: "POST", body: formData });
+            if (!res.ok) {
+                const text = await res.text();
+                showToast("error", "Erreur d'import", text || "Erreur inconnue.");
+                return;
+            }
+            const data = await res.json();
+            showToast("success", "Import réussi", `${data.imported} utilisateur(s) importé(s).`);
+            if (data.errors && data.errors.length > 0) {
+                showToast("warning", "Avertissements", data.errors.slice(0, 3).join("\n"));
+            }
+            cachedUsers = [];
+            await renderUsers();
+        } catch {
+            showToast("error", "Erreur", "Impossible d'importer les utilisateurs.");
+        } finally {
+            e.target.value = "";
+        }
+    });
+
+    // Users tabs (including new pending tab)
     $$(".users-tab").forEach((tab) => {
         tab.addEventListener("click", () => {
-            $$(".users-tab").forEach((t) => t.classList.remove("active"));
+            // Handle archive tabs separately
+            if (tab.dataset.archiveTab) return;
+
+            // Skip montant tabs – handled by montant.js
+            if (tab.dataset.montantTab) return;
+
+            $$(".users-tab[data-tab]").forEach((t) => t.classList.remove("active"));
             tab.classList.add("active");
 
             const tabName = tab.dataset.tab;
-            $$(".users-panel").forEach((p) => p.classList.remove("active"));
-            $(`${tabName}Panel`)?.classList.add("active");
+            $$(".users-panel").forEach((p) => {
+                p.classList.remove("active");
+                p.classList.add("hidden");
+            });
+            const panel = $(`${tabName}Panel`);
+            if (panel) {
+                panel.classList.remove("hidden");
+                panel.classList.add("active");
+            }
         });
     });
 
@@ -1285,10 +2061,315 @@ document.addEventListener("DOMContentLoaded", () => {
             item.classList.add("active");
 
             const setting = item.dataset.setting;
-            $$(".settings-panel").forEach((p) => p.classList.remove("active"));
-            $(`setting-${setting}`)?.classList.add("active");
+            $$(".settings-panel").forEach((p) => {
+                p.classList.remove("active");
+                p.classList.add("hidden");
+            });
+            const panel = $(`setting-${setting}`);
+            if (panel) {
+                panel.classList.remove("hidden");
+                panel.classList.add("active");
+            }
         });
     });
+
+    // ===========================
+    // SETTINGS LOGIC
+    // ===========================
+    const SETTINGS_KEY = "ingeprojets_settings";
+
+    const defaultSettings = {
+        lang: "fr",
+        timezone: "Africa/Algiers",
+        dateFormat: "dd/MM/yyyy",
+        currency: "DZD",
+        showKpi: true,
+        animCharts: true,
+        autoRefresh: false,
+        notifEmail: true,
+        notifPush: true,
+        notifBudget: true,
+        notifTasks: true,
+        notifWeekly: false,
+        theme: "light",
+        density: "normal"
+    };
+
+    function loadSettings() {
+        try {
+            const stored = localStorage.getItem(SETTINGS_KEY);
+            return stored ? { ...defaultSettings, ...JSON.parse(stored) } : { ...defaultSettings };
+        } catch { return { ...defaultSettings }; }
+    }
+
+    function saveSettingsToStorage(settings) {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    function applySettingsToUI(s) {
+        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
+        const setChk = (id, val) => { const el = $(id); if (el) el.checked = val; };
+        const setRadio = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if (el) { el.checked = true; el.closest("label")?.click(); } };
+
+        setVal("settingLang", s.lang);
+        setVal("settingTimezone", s.timezone);
+        setVal("settingDateFormat", s.dateFormat);
+        setVal("settingCurrency", s.currency);
+        setChk("settingShowKpi", s.showKpi);
+        setChk("settingAnimCharts", s.animCharts);
+        setChk("settingAutoRefresh", s.autoRefresh);
+        setChk("settingNotifEmail", s.notifEmail);
+        setChk("settingNotifPush", s.notifPush);
+        setChk("settingNotifBudget", s.notifBudget);
+        setChk("settingNotifTasks", s.notifTasks);
+        setChk("settingNotifWeekly", s.notifWeekly);
+        setRadio("theme", s.theme);
+        setRadio("density", s.density);
+    }
+
+    function readSettingsFromUI() {
+        const getVal = (id) => $(id)?.value ?? "";
+        const getChk = (id) => $(id)?.checked ?? false;
+        const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value ?? "";
+
+        return {
+            lang: getVal("settingLang"),
+            timezone: getVal("settingTimezone"),
+            dateFormat: getVal("settingDateFormat"),
+            currency: getVal("settingCurrency"),
+            showKpi: getChk("settingShowKpi"),
+            animCharts: getChk("settingAnimCharts"),
+            autoRefresh: getChk("settingAutoRefresh"),
+            notifEmail: getChk("settingNotifEmail"),
+            notifPush: getChk("settingNotifPush"),
+            notifBudget: getChk("settingNotifBudget"),
+            notifTasks: getChk("settingNotifTasks"),
+            notifWeekly: getChk("settingNotifWeekly"),
+            theme: getRadio("theme"),
+            density: getRadio("density")
+        };
+    }
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        document.body.setAttribute("data-theme", theme);
+
+        $$(".theme-option").forEach(opt => {
+            opt.classList.toggle("active", opt.querySelector("input")?.value === theme);
+        });
+    }
+
+    function applyDensity(density) {
+        document.documentElement.setAttribute("data-density", density);
+        $$(".density-option").forEach(opt => {
+            opt.classList.toggle("active", opt.querySelector("input")?.value === density);
+        });
+    }
+
+    function applyDashboardSettings(s) {
+        const kpiGrid = document.querySelector("#page-dashboard .kpi-grid");
+        if (kpiGrid) kpiGrid.style.display = s.showKpi ? "" : "none";
+    }
+
+    function applyCurrencyGlobal(currency) {
+        window._appCurrency = currency;
+        window._appCurrencySymbol = currency === "DZD" ? "DA" : "€";
+    }
+
+    function applyDateFormatGlobal(format) {
+        window._appDateFormat = format;
+    }
+
+    function applyLanguage(lang) {
+        document.documentElement.lang = lang;
+        window._appLang = lang;
+    }
+
+    function applyAllSettings(s) {
+        applyTheme(s.theme);
+        applyDensity(s.density);
+        applyDashboardSettings(s);
+        applyCurrencyGlobal(s.currency);
+        applyDateFormatGlobal(s.dateFormat);
+        applyLanguage(s.lang);
+    }
+
+    // Re-render the active page so date/currency/language changes are reflected
+    function refreshActivePage() {
+        updateDate();
+        const hash = window.location.hash.slice(1) || "dashboard";
+        if (pages[hash]) loadPageData(hash);
+    }
+
+    // Init settings on load
+    const appSettings = loadSettings();
+    applySettingsToUI(appSettings);
+    applyAllSettings(appSettings);
+
+    // Theme radios - apply immediately on click
+    $$("input[name='theme']").forEach(radio => {
+        radio.addEventListener("change", () => {
+            applyTheme(radio.value);
+        });
+    });
+
+    // Density radios - apply immediately
+    $$("input[name='density']").forEach(radio => {
+        radio.addEventListener("change", () => {
+            applyDensity(radio.value);
+            radio.closest("label")?.parentElement?.querySelectorAll(".density-option").forEach(opt => opt.classList.remove("active"));
+            radio.closest("label")?.classList.add("active");
+        });
+    });
+
+    // Save settings button
+    $("saveSettingsBtn")?.addEventListener("click", () => {
+        const s = readSettingsFromUI();
+        saveSettingsToStorage(s);
+        applyAllSettings(s);
+        refreshActivePage();
+        showToast("success", "Paramètres sauvegardés", "Vos préférences ont été enregistrées.");
+    });
+
+    // Reset/cancel settings
+    $("resetSettingsBtn")?.addEventListener("click", () => {
+        const s = loadSettings();
+        applySettingsToUI(s);
+        applyAllSettings(s);
+        refreshActivePage();
+        showToast("info", "Modifications annulées", "Les paramètres ont été restaurés.");
+    });
+
+    // Change password
+    $("changePasswordBtn")?.addEventListener("click", async () => {
+        const currentPassword = $("secCurrentPassword")?.value;
+        const newPassword = $("secNewPassword")?.value;
+        const confirmPassword = $("secConfirmPassword")?.value;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showToast("error", "Erreur", "Veuillez remplir tous les champs.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            showToast("error", "Erreur", "Le nouveau mot de passe et la confirmation ne correspondent pas.");
+            return;
+        }
+        if (newPassword.length < 6) {
+            showToast("error", "Erreur", "Le mot de passe doit contenir au moins 6 caractères.");
+            return;
+        }
+
+        const result = await api("/api/users/change-password", {
+            method: "POST",
+            body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+        });
+
+        if (result) {
+            showToast("success", "Mot de passe modifié", "Votre mot de passe a été changé avec succès.");
+            $("secCurrentPassword").value = "";
+            $("secNewPassword").value = "";
+            $("secConfirmPassword").value = "";
+        } else {
+            showToast("error", "Erreur", "Mot de passe actuel incorrect ou nouveau mot de passe invalide.");
+        }
+    });
+
+    // Detect current session device
+    (function detectSession() {
+        const el = $("sessionCurrentDevice");
+        if (!el) return;
+        const ua = navigator.userAgent;
+        let os = "Inconnu";
+        if (ua.includes("Windows")) os = "Windows";
+        else if (ua.includes("Mac")) os = "macOS";
+        else if (ua.includes("Linux")) os = "Linux";
+        else if (ua.includes("Android")) os = "Android";
+        else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+
+        let browser = "Navigateur";
+        if (ua.includes("Edg/")) browser = "Edge";
+        else if (ua.includes("Chrome")) browser = "Chrome";
+        else if (ua.includes("Firefox")) browser = "Firefox";
+        else if (ua.includes("Safari")) browser = "Safari";
+
+        el.textContent = `${os} - ${browser}`;
+    })();
+
+    // Data export JSON
+    $("dataExportJsonBtn")?.addEventListener("click", async () => {
+        try {
+            const projects = await api("/api/projects");
+            const users = await api("/api/users");
+            const data = { projects, users, exportDate: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "ingeprojets-export.json";
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+            showToast("success", "Export réussi", "Données exportées en JSON.");
+        } catch {
+            showToast("error", "Erreur", "Impossible d'exporter les données.");
+        }
+    });
+
+    // Data export Excel (users)
+    $("dataExportExcelBtn")?.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/users/export");
+            if (!res.ok) throw new Error();
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "Utilisateurs.xlsx";
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+            showToast("success", "Export réussi", "Fichier Excel téléchargé.");
+        } catch {
+            showToast("error", "Erreur", "Impossible d'exporter.");
+        }
+    });
+
+    // Backup now (save settings timestamp)
+    $("dataBackupNowBtn")?.addEventListener("click", () => {
+        const now = new Date().toLocaleString(appLocale(), { timeZone: "Africa/Algiers" });
+        localStorage.setItem("ingeprojets_lastBackup", now);
+        const el = $("dataLastBackup");
+        if (el) el.textContent = `Dernière sauvegarde : ${now}`;
+        showToast("success", "Sauvegarde effectuée", "Les paramètres ont été sauvegardés.");
+    });
+
+    // Restore last backup display
+    (function restoreBackupDisplay() {
+        const last = localStorage.getItem("ingeprojets_lastBackup");
+        const el = $("dataLastBackup");
+        if (el && last) el.textContent = `Dernière sauvegarde : ${last}`;
+    })();
+
+    // Reset all settings
+    $('dataResetSettingsBtn')?.addEventListener('click', () => {
+        if (!confirm('\u00cates-vous s\u00fbr de vouloir r\u00e9initialiser tous les param\u00e8tres ?')) return;
+        localStorage.removeItem(SETTINGS_KEY);
+        const s = { ...defaultSettings };
+        applySettingsToUI(s);
+        applyAllSettings(s);
+        refreshActivePage();
+        showToast('success', 'Param\u00e8tres r\u00e9initialis\u00e9s', 'Tous les param\u00e8tres ont \u00e9t\u00e9 remis par d\u00e9faut.');
+    });
+
+    // Auto refresh timer
+    let autoRefreshInterval = null;
+    function startAutoRefresh() {
+        stopAutoRefresh();
+        const s = loadSettings();
+        if (s.autoRefresh) {
+            autoRefreshInterval = setInterval(() => { location.reload(); }, 5 * 60 * 1000);
+        }
+    }
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+    }
+    startAutoRefresh();
 
     // ===========================
     // FAQ ACCORDION
@@ -1382,6 +2463,8 @@ document.addEventListener("DOMContentLoaded", () => {
             phase: $("taskPhase")?.value || null,
             commentaire: $("taskCommentaire")?.value || null,
             dependanceId: $("taskDependance")?.value ? parseInt($("taskDependance").value) : null,
+            montantPrevu: parseFloat($("taskMontantPrevu")?.value) || 0,
+            montantRealise: parseFloat($("taskMontantRealise")?.value) || 0,
         };
         const result = await api("/api/tasks", { method: "POST", body: JSON.stringify(body) });
         if (result) {
@@ -1642,7 +2725,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <div class="map-popup-info">
                         <div><i class="fa-solid fa-map-marker-alt"></i> ${esc(p.localisation)}</div>
                         <div><i class="fa-solid fa-user"></i> ${esc(p.chefProjet || "Non assigné")}</div>
-                        <div><i class="fa-solid fa-euro-sign"></i> ${(p.budgetAlloue / 1000000).toFixed(1)}M €</div>
+                        <div><i class="fa-solid ${currencyIconClass()}"></i> ${fmtBudgetM(p.budgetAlloue)}</div>
                     </div>
                 </div>
             `, { maxWidth: 280 });
@@ -1696,16 +2779,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-${ti}"></i> Type</span><span class="view-detail-value">${typeLabels[p.type] || p.type}</span></div>
                         <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-map-marker-alt"></i> Localisation</span><span class="view-detail-value">${p.localisation || 'Non défini'}</span></div>
                         <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-user"></i> Chef de projet</span><span class="view-detail-value">${p.chefProjet || 'Non assigné'}</span></div>
-                        <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-calendar-plus"></i> Début</span><span class="view-detail-value">${new Date(p.dateDebut).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span></div>
-                        <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-calendar-check"></i> Échéance</span><span class="view-detail-value">${new Date(p.dateFinPrevue).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span></div>
+                        <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-calendar-plus"></i> Début</span><span class="view-detail-value">${formatAppDate(p.dateDebut, { day: "numeric", month: "long", year: "numeric" })}</span></div>
+                        <div class="view-detail-row"><span class="view-detail-label"><i class="fa-solid fa-calendar-check"></i> Échéance</span><span class="view-detail-value">${formatAppDate(p.dateFinPrevue, { day: "numeric", month: "long", year: "numeric" })}</span></div>
                     </div>
                 </div>
                 <div class="view-project-section">
                     <h4><i class="fa-solid fa-coins"></i> Budget</h4>
                     <div class="view-budget-cards">
-                        <div class="view-budget-card"><span class="view-budget-label">Alloué</span><span class="view-budget-value">${(p.budgetAlloue / 1000000).toFixed(2)} M€</span></div>
-                        <div class="view-budget-card"><span class="view-budget-label">Dépensé</span><span class="view-budget-value view-budget--spent">${(depense / 1000000).toFixed(2)} M€</span></div>
-                        <div class="view-budget-card"><span class="view-budget-label">Restant</span><span class="view-budget-value view-budget--${budgetStatus}">${(remaining / 1000000).toFixed(2)} M€</span></div>
+                        <div class="view-budget-card"><span class="view-budget-label">Alloué</span><span class="view-budget-value">${fmtBudgetM(p.budgetAlloue, 2)}</span></div>
+                        <div class="view-budget-card"><span class="view-budget-label">Dépensé</span><span class="view-budget-value view-budget--spent">${fmtBudgetM(depense, 2)}</span></div>
+                        <div class="view-budget-card"><span class="view-budget-label">Restant</span><span class="view-budget-value view-budget--${budgetStatus}">${fmtBudgetM(remaining, 2)}</span></div>
                     </div>
                     <div class="view-budget-bar">
                         <div class="progress-header"><span>Consommation</span><span>${budgetPct}%</span></div>
@@ -1747,7 +2830,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             </div>
                             <div class="view-task-meta">
                                 <span class="view-task-assignee"><i class="fa-solid fa-user"></i> ${t.assigneA || 'Non assigné'}</span>
-                                <span class="view-task-due"><i class="fa-solid fa-calendar"></i> ${new Date(t.dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span>
+                                <span class="view-task-due"><i class="fa-solid fa-calendar"></i> ${formatAppDate(t.dateEcheance, { day: "numeric", month: "short" })}</span>
                                 <div class="view-task-progress">
                                     <div class="progress-bar" style="width:60px"><div class="progress-fill" style="width:${tprog}%"></div></div>
                                     <span>${tprog}%</span>
@@ -1968,7 +3051,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const dateEl = $("currentDate");
         if (dateEl) {
             const options = { day: "numeric", month: "long", year: "numeric" };
-            dateEl.textContent = new Date().toLocaleDateString("fr-FR", options);
+            dateEl.textContent = new Date().toLocaleDateString(appLocale(), options);
         }
     }
 
@@ -1987,8 +3070,8 @@ document.addEventListener("DOMContentLoaded", () => {
             `"${typeLabels[p.type] || p.type}"`,
             `"${prioriteLabels[p.priorite] || p.priorite}"`,
             `"${statusLabels[p.statut] || p.statut}"`,
-            p.dateDebut ? new Date(p.dateDebut).toLocaleDateString("fr-FR") : "",
-            p.dateFinPrevue ? new Date(p.dateFinPrevue).toLocaleDateString("fr-FR") : "",
+            p.dateDebut ? formatAppDate(p.dateDebut) : "",
+            p.dateFinPrevue ? formatAppDate(p.dateFinPrevue) : "",
             p.budgetAlloue,
             p.avancement + "%",
             `"${(p.localisation || '').replace(/"/g, '""')}"`,
@@ -2276,8 +3359,8 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="project-card-meta">
             <span><i class="fa-solid fa-user"></i> ${esc(p.chefProjet || "Non assigné")}</span>
-            <span><i class="fa-solid fa-calendar"></i> ${new Date(p.dateFinPrevue).toLocaleDateString("fr-FR")}</span>
-            <span><i class="fa-solid fa-euro-sign"></i> ${(p.budgetAlloue / 1000000).toFixed(1)}M €</span>
+            <span><i class="fa-solid fa-calendar"></i> ${formatAppDate(p.dateFinPrevue)}</span>
+            <span><i class="fa-solid ${currencyIconClass()}"></i> ${fmtBudgetM(p.budgetAlloue)}</span>
           </div>
           <div class="project-card-footer">
             <div class="project-card-team">
@@ -2304,13 +3387,13 @@ document.addEventListener("DOMContentLoaded", () => {
         <td><strong>${esc(p.nom)}</strong><br><small>${esc(p.code || '')}</small></td>
         <td>${esc(typeLabels[p.type] || p.type)}</td>
         <td>${esc(p.chefProjet || 'Non assigné')}</td>
-        <td>${(p.budgetAlloue / 1000000).toFixed(1)}M €</td>
+        <td>${fmtBudgetM(p.budgetAlloue)}</td>
         <td>
           <div class="progress-bar" style="width: 80px;"><div class="progress-fill" style="width: ${p.avancement}%"></div></div>
           ${p.avancement}%
         </td>
         <td><span class="project-status status--${sc}">${esc(statusLabels[p.statut] || p.statut)}</span></td>
-        <td>${new Date(p.dateFinPrevue).toLocaleDateString("fr-FR")}</td>
+        <td>${formatAppDate(p.dateFinPrevue)}</td>
         <td>
           <div class="table-actions-group">
             <button class="btn btn-sm btn-outline" data-action="view" data-project-id="${p.id}" title="Voir"><i class="fa-solid fa-eye"></i></button>
@@ -2482,7 +3565,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         body.innerHTML = tasks.map(t => {
-            const echeance = new Date(t.dateEcheance).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+            const echeance = formatAppDate(t.dateEcheance, { day: "numeric", month: "short", year: "numeric" });
             return `<tr>
                 <td><strong>${esc(t.titre)}</strong></td>
                 <td>${esc(t.projet)}</td>
@@ -2525,6 +3608,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // New fields
         if ($("editTaskPhase")) $("editTaskPhase").value = t.phase || "";
         if ($("editTaskCommentaire")) $("editTaskCommentaire").value = t.commentaire || "";
+        if ($("editTaskMontantPrevu")) $("editTaskMontantPrevu").value = t.montantPrevu || 0;
+        if ($("editTaskMontantRealise")) $("editTaskMontantRealise").value = t.montantRealise || 0;
 
         // Auto-calc duration
         calcDuration("editTaskStartDate", "editTaskDueDate", "editTaskDuration");
@@ -2580,6 +3665,8 @@ document.addEventListener("DOMContentLoaded", () => {
             phase: $("editTaskPhase")?.value || null,
             commentaire: $("editTaskCommentaire")?.value || null,
             dependanceId: $("editTaskDependance")?.value ? parseInt($("editTaskDependance").value) : null,
+            montantPrevu: parseFloat($("editTaskMontantPrevu")?.value) || 0,
+            montantRealise: parseFloat($("editTaskMontantRealise")?.value) || 0,
         };
 
         const result = await api(`/api/tasks/${editingTaskId}`, { method: "PUT", body: JSON.stringify(body) });
@@ -2739,7 +3826,7 @@ document.addEventListener("DOMContentLoaded", () => {
         container.innerHTML = docs.map(d => {
             const icon = getDocIcon(d.contentType);
             const size = formatFileSize(d.tailleFichier);
-            const date = new Date(d.dateAjout).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+            const date = formatAppDate(d.dateAjout, { day: "numeric", month: "short", year: "numeric" });
             return `<div class="view-document-item">
                 <div class="view-document-icon"><i class="fa-solid ${icon}"></i></div>
                 <div class="view-document-info">
@@ -2985,8 +4072,8 @@ document.addEventListener("DOMContentLoaded", () => {
             el("archiveProjetsCount", stats.projetsArchives);
             el("archiveTachesCount", stats.tachesArchivees);
             el("archiveBudgetTotal", stats.budgetArchive > 0
-                ? `${(stats.budgetArchive / 1000000).toFixed(1)}M €`
-                : "0 €");
+                ? fmtBudgetM(stats.budgetArchive)
+                : formatAppCurrency(0));
         }
 
         // Archived projects table
@@ -2998,13 +4085,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 projBody.innerHTML = projects.map(p => {
                     const sc = statusCssMap[p.statut] || "info";
                     const archiveDate = p.dateArchivage
-                        ? new Date(p.dateArchivage).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                        ? formatAppDate(p.dateArchivage, { day: "numeric", month: "short", year: "numeric" })
                         : "—";
                     return `<tr>
                         <td><strong>${esc(p.nom)}</strong><br><small>${esc(p.code || "")}</small></td>
                         <td>${esc(typeLabels[p.type] || p.type)}</td>
                         <td><span class="project-status status--${sc}">${esc(statusLabels[p.statut] || p.statut)}</span></td>
-                        <td>${(p.budgetAlloue / 1000000).toFixed(1)}M €</td>
+                        <td>${fmtBudgetM(p.budgetAlloue)}</td>
                         <td>
                             <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${p.avancement}%"></div></div>
                             ${p.avancement}%
@@ -3033,7 +4120,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tpc = prioriteCssMap[t.priorite] || "medium";
                     const statusLabel = t.statut === "AFaire" ? "À faire" : t.statut === "EnCours" ? "En cours" : t.statut === "EnRevue" ? "En revue" : "Terminée";
                     const archiveDate = t.dateArchivage
-                        ? new Date(t.dateArchivage).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                        ? formatAppDate(t.dateArchivage, { day: "numeric", month: "short", year: "numeric" })
                         : "—";
                     const canRestore = !t.projetArchive;
                     return `<tr>

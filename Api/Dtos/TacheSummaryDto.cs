@@ -21,4 +21,6 @@ string? AssigneA,
 string? AssigneAId,
 string? Phase,
 string? Commentaire,
-int? DependanceId);
+int? DependanceId,
+decimal MontantPrevu,
+decimal MontantRealise);

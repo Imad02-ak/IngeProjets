@@ -46,6 +46,14 @@ public class Tache
     [Display(Name = "Commentaire")]
     public string? Commentaire { get; set; }
 
+    [Column(TypeName = "decimal(18,2)")]
+    [Display(Name = "Montant prévu")]
+    public decimal MontantPrevu { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    [Display(Name = "Montant réalisé")]
+    public decimal MontantRealise { get; set; }
+
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
     [Display(Name = "Archivé")]

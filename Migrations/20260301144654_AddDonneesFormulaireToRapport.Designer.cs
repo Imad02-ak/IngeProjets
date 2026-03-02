@@ -4,6 +4,7 @@ using IngeProjets.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IngeProjets.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260301144654_AddDonneesFormulaireToRapport")]
+    partial class AddDonneesFormulaireToRapport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,9 +50,6 @@ namespace IngeProjets.Migrations
                     b.Property<bool>("EstActif")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("EstApprouve")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -78,10 +78,6 @@ namespace IngeProjets.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Poste")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("Prenom")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -108,67 +104,6 @@ namespace IngeProjets.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.Avenant", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Montant")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Motif")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("Numero")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProjetId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjetId");
-
-                    b.ToTable("Avenants");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.DevisLigne", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Designation")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal>("MontantHT")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Ordre")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProjetId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjetId");
-
-                    b.ToTable("DevisLignes");
                 });
 
             modelBuilder.Entity("IngeProjets.Data.Models.DocumentProjet", b =>
@@ -212,43 +147,6 @@ namespace IngeProjets.Migrations
                     b.HasIndex("ProjetId");
 
                     b.ToTable("Documents");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.Facture", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Montant")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("ProjetId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("SituationPaiementId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Statut")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjetId");
-
-                    b.HasIndex("SituationPaiementId");
-
-                    b.ToTable("Factures");
                 });
 
             modelBuilder.Entity("IngeProjets.Data.Models.Projet", b =>
@@ -391,36 +289,6 @@ namespace IngeProjets.Migrations
                     b.ToTable("Rapports");
                 });
 
-            modelBuilder.Entity("IngeProjets.Data.Models.SituationPaiement", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("MontantValide")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Numero")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("PourcentageCumule")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<int>("ProjetId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjetId");
-
-                    b.ToTable("SituationsPaiement");
-                });
-
             modelBuilder.Entity("IngeProjets.Data.Models.Tache", b =>
                 {
                     b.Property<int>("Id")
@@ -461,12 +329,6 @@ namespace IngeProjets.Migrations
                     b.Property<bool>("EstArchive")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("MontantPrevu")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("MontantRealise")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("Phase")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -503,45 +365,6 @@ namespace IngeProjets.Migrations
                     b.HasIndex("Statut");
 
                     b.ToTable("Taches");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.TacheProjet", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal>("MontantPrevu")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("MontantRealise")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Nom")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("PourcentageAvancement")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProjetId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Statut")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjetId");
-
-                    b.ToTable("TachesProjet");
                 });
 
             modelBuilder.Entity("IngeProjets.Data.Models.TransactionBudget", b =>
@@ -721,28 +544,6 @@ namespace IngeProjets.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("IngeProjets.Data.Models.Avenant", b =>
-                {
-                    b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
-                        .WithMany("Avenants")
-                        .HasForeignKey("ProjetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Projet");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.DevisLigne", b =>
-                {
-                    b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
-                        .WithMany("DevisLignes")
-                        .HasForeignKey("ProjetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Projet");
-                });
-
             modelBuilder.Entity("IngeProjets.Data.Models.DocumentProjet", b =>
                 {
                     b.HasOne("IngeProjets.Data.Models.ApplicationUser", "AjoutePar")
@@ -759,24 +560,6 @@ namespace IngeProjets.Migrations
                     b.Navigation("AjoutePar");
 
                     b.Navigation("Projet");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.Facture", b =>
-                {
-                    b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
-                        .WithMany("Factures")
-                        .HasForeignKey("ProjetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("IngeProjets.Data.Models.SituationPaiement", "SituationPaiement")
-                        .WithMany()
-                        .HasForeignKey("SituationPaiementId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Projet");
-
-                    b.Navigation("SituationPaiement");
                 });
 
             modelBuilder.Entity("IngeProjets.Data.Models.Projet", b =>
@@ -806,17 +589,6 @@ namespace IngeProjets.Migrations
                     b.Navigation("Projet");
                 });
 
-            modelBuilder.Entity("IngeProjets.Data.Models.SituationPaiement", b =>
-                {
-                    b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
-                        .WithMany("Situations")
-                        .HasForeignKey("ProjetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Projet");
-                });
-
             modelBuilder.Entity("IngeProjets.Data.Models.Tache", b =>
                 {
                     b.HasOne("IngeProjets.Data.Models.ApplicationUser", "AssigneA")
@@ -838,17 +610,6 @@ namespace IngeProjets.Migrations
                     b.Navigation("AssigneA");
 
                     b.Navigation("Dependance");
-
-                    b.Navigation("Projet");
-                });
-
-            modelBuilder.Entity("IngeProjets.Data.Models.TacheProjet", b =>
-                {
-                    b.HasOne("IngeProjets.Data.Models.Projet", "Projet")
-                        .WithMany("TachesProjet")
-                        .HasForeignKey("ProjetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Projet");
                 });
@@ -926,21 +687,11 @@ namespace IngeProjets.Migrations
 
             modelBuilder.Entity("IngeProjets.Data.Models.Projet", b =>
                 {
-                    b.Navigation("Avenants");
-
-                    b.Navigation("DevisLignes");
-
                     b.Navigation("Documents");
-
-                    b.Navigation("Factures");
 
                     b.Navigation("Rapports");
 
-                    b.Navigation("Situations");
-
                     b.Navigation("Taches");
-
-                    b.Navigation("TachesProjet");
 
                     b.Navigation("Transactions");
                 });

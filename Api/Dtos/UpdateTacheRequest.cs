@@ -34,6 +34,12 @@ public sealed class UpdateTacheRequest : IValidatableObject
 
     public int? DependanceId { get; init; }
 
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Le montant prévu doit être positif.")]
+    public decimal MontantPrevu { get; init; }
+
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Le montant réalisé doit être positif.")]
+    public decimal MontantRealise { get; init; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (DateDebut.HasValue && DateEcheance <= DateDebut.Value)

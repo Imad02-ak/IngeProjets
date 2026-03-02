@@ -16,6 +16,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TransactionBudget> TransactionsBudget => Set<TransactionBudget>();
     public DbSet<Rapport> Rapports => Set<Rapport>();
     public DbSet<DocumentProjet> Documents => Set<DocumentProjet>();
+    public DbSet<DevisLigne> DevisLignes => Set<DevisLigne>();
+    public DbSet<TacheProjet> TachesProjet => Set<TacheProjet>();
+    public DbSet<SituationPaiement> SituationsPaiement => Set<SituationPaiement>();
+    public DbSet<Avenant> Avenants => Set<Avenant>();
+    public DbSet<Facture> Factures => Set<Facture>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -99,6 +104,56 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(u => u.RapportsGeneres)
                   .HasForeignKey(r => r.GenereParId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --- DevisLigne ---
+        builder.Entity<DevisLigne>(entity =>
+        {
+            entity.HasOne(d => d.Projet)
+                  .WithMany(p => p.DevisLignes)
+                  .HasForeignKey(d => d.ProjetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- TacheProjet ---
+        builder.Entity<TacheProjet>(entity =>
+        {
+            entity.HasOne(t => t.Projet)
+                  .WithMany(p => p.TachesProjet)
+                  .HasForeignKey(t => t.ProjetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- SituationPaiement ---
+        builder.Entity<SituationPaiement>(entity =>
+        {
+            entity.HasOne(s => s.Projet)
+                  .WithMany(p => p.Situations)
+                  .HasForeignKey(s => s.ProjetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- Avenant ---
+        builder.Entity<Avenant>(entity =>
+        {
+            entity.HasOne(a => a.Projet)
+                  .WithMany(p => p.Avenants)
+                  .HasForeignKey(a => a.ProjetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- Facture ---
+        builder.Entity<Facture>(entity =>
+        {
+            entity.HasOne(f => f.Projet)
+                  .WithMany(p => p.Factures)
+                  .HasForeignKey(f => f.ProjetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(f => f.SituationPaiement)
+                  .WithMany()
+                  .HasForeignKey(f => f.SituationPaiementId)
+                  .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

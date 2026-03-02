@@ -52,8 +52,17 @@ public static class DbInitializer
 
         foreach (var u in defaultUsers)
         {
-            if (await userManager.FindByEmailAsync(u.Email) is not null)
+            var existing = await userManager.FindByEmailAsync(u.Email);
+            if (existing is not null)
+            {
+                // Fix existing seed users that were created before EstApprouve was added
+                if (!existing.EstApprouve)
+                {
+                    existing.EstApprouve = true;
+                    await userManager.UpdateAsync(existing);
+                }
                 continue;
+            }
 
             var user = new ApplicationUser
             {
@@ -62,7 +71,8 @@ public static class DbInitializer
                 Nom = u.Nom,
                 Prenom = u.Prenom,
                 EmailConfirmed = true,
-                EstActif = true
+                EstActif = true,
+                EstApprouve = true
             };
 
             var result = await userManager.CreateAsync(user, "Test1234");

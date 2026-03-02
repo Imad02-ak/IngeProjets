@@ -85,6 +85,11 @@ public class Projet
     public ICollection<TransactionBudget> Transactions { get; set; } = [];
     public ICollection<Rapport> Rapports { get; set; } = [];
     public ICollection<DocumentProjet> Documents { get; set; } = [];
+    public ICollection<DevisLigne> DevisLignes { get; set; } = [];
+    public ICollection<TacheProjet> TachesProjet { get; set; } = [];
+    public ICollection<SituationPaiement> Situations { get; set; } = [];
+    public ICollection<Avenant> Avenants { get; set; } = [];
+    public ICollection<Facture> Factures { get; set; } = [];
 }
 
 public enum TypeProjet

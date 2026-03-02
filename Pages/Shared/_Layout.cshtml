@@ -42,6 +42,7 @@
     <script src="~/js/algeria-geo.js" charset="utf-8" asp-append-version="true"></script>
     <!-- JS en defer -->
     <script src="~/js/Layout_Script.js" defer asp-append-version="true"></script>
+    <script src="~/js/montant.js" defer asp-append-version="true"></script>
 </head>
 
 <body>
@@ -77,7 +78,7 @@
                 </a>
                 <a href="#budgets" class="nav-item" data-page="budgets">
                     <div class="nav-icon"><i class="fa-solid fa-sack-dollar"></i></div>
-                    <span class="nav-text">Budgets</span>
+                    <span class="nav-text">Montants</span>
                 </a>
                 <a href="#rapports" class="nav-item" data-page="rapports">
                     <div class="nav-icon"><i class="fa-solid fa-chart-bar"></i></div>
@@ -818,140 +819,304 @@
                 </section>
 
                 <!-- ========================================== -->
-                <!-- PAGE: BUDGETS -->
+                <!-- PAGE: MONTANTS (Gestion Financière) -->
                 <!-- ========================================== -->
                 <section class="page-section" id="page-budgets">
                     <div class="page-header">
                         <div class="page-header-left">
-                            <h2 class="page-title">Gestion Budgétaire</h2>
+                            <h2 class="page-title">Gestion des Montants</h2>
                             <p class="page-subtitle">
-                                Suivez les finances et budgets de vos projets
+                                Suivi financier complet : devis, situations, avenants et factures
                             </p>
                         </div>
                         <div class="page-header-actions">
-                            <button class="btn btn-outline" id="exportBudgetBtn">
-                                <i class="fa-solid fa-file-excel"></i> Exporter Excel
-                            </button>
-                            <button class="btn btn-primary" id="newBudgetBtn">
-                                <i class="fa-solid fa-plus"></i> Nouveau Budget
-                            </button>
+                            <select class="filter-select" id="montantProjetSelect" style="min-width:220px;">
+                                <option value="">Sélectionner un projet...</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- KPI Financiers -->
-                    <div class="budget-kpis">
-                        <div class="card budget-kpi-card">
-                            <div class="budget-kpi-header">
-                                <span class="budget-kpi-label">Budget Total Alloué</span>
-                                <i class="fa-solid fa-wallet budget-kpi-icon"></i>
-                            </div>
-                            <div class="budget-kpi-value">45 200 000 €</div>
-                            <div class="budget-kpi-sub">Sur 24 projets actifs</div>
-                        </div>
-                        <div class="card budget-kpi-card">
-                            <div class="budget-kpi-header">
-                                <span class="budget-kpi-label">Dépenses Engagées</span>
-                                <i class="fa-solid fa-money-bill-trend-up budget-kpi-icon icon-warning"></i>
-                            </div>
-                            <div class="budget-kpi-value">35 156 000 €</div>
-                            <div class="budget-progress">
-                                <div class="budget-progress-bar" style="width: 78%"></div>
-                            </div>
-                            <div class="budget-kpi-sub">78% du budget total</div>
-                        </div>
-                        <div class="card budget-kpi-card">
-                            <div class="budget-kpi-header">
-                                <span class="budget-kpi-label">Budget Restant</span>
-                                <i class="fa-solid fa-piggy-bank budget-kpi-icon icon-success"></i>
-                            </div>
-                            <div class="budget-kpi-value">10 044 000 €</div>
-                            <div class="budget-kpi-sub">22% disponible</div>
-                        </div>
-                        <div class="card budget-kpi-card">
-                            <div class="budget-kpi-header">
-                                <span class="budget-kpi-label">Dépassements</span>
-                                <i class="fa-solid fa-triangle-exclamation budget-kpi-icon icon-danger"></i>
-                            </div>
-                            <div class="budget-kpi-value budget-danger">3 projets</div>
-                            <div class="budget-kpi-sub">1 245 000 € au total</div>
-                        </div>
-                    </div>
+                    <!-- Conteneur principal montant (masqué tant qu'aucun projet n'est sélectionné) -->
+                    <div id="montantContent" style="display:none;">
 
-                    <!-- Graphiques Budget -->
-                    <div class="budget-charts">
-                        <div class="card chart-card-large">
-                            <div class="card-header">
-                                <h2 class="card-title">
-                                    <i class="fa-solid fa-chart-line"></i> Évolution Budgétaire
-                                </h2>
-                                <div class="chart-legend">
-                                    <span class="legend-dot legend-budget"></span> Budget prévu
-                                    <span class="legend-dot legend-spent"></span> Dépenses
-                                    réelles
+                        <!-- KPI Financiers -->
+                        <div class="budget-kpis">
+                            <div class="card budget-kpi-card">
+                                <div class="budget-kpi-header">
+                                    <span class="budget-kpi-label">Montant HT</span>
+                                    <i class="fa-solid fa-file-invoice-dollar budget-kpi-icon"></i>
+                                </div>
+                                <div class="budget-kpi-value" id="kpiMontantHT">0 DA</div>
+                                <div class="budget-kpi-sub">Devis initial + avenants</div>
+                            </div>
+                            <div class="card budget-kpi-card">
+                                <div class="budget-kpi-header">
+                                    <span class="budget-kpi-label">TVA (19%)</span>
+                                    <i class="fa-solid fa-percent budget-kpi-icon icon-warning"></i>
+                                </div>
+                                <div class="budget-kpi-value" id="kpiTVA">0 DA</div>
+                                <div class="budget-kpi-sub">Taxe sur la valeur ajoutée</div>
+                            </div>
+                            <div class="card budget-kpi-card">
+                                <div class="budget-kpi-header">
+                                    <span class="budget-kpi-label">Montant TTC</span>
+                                    <i class="fa-solid fa-wallet budget-kpi-icon icon-success"></i>
+                                </div>
+                                <div class="budget-kpi-value" id="kpiMontantTTC">0 DA</div>
+                                <div class="budget-kpi-sub">Total toutes taxes comprises</div>
+                            </div>
+                            <div class="card budget-kpi-card">
+                                <div class="budget-kpi-header">
+                                    <span class="budget-kpi-label">Restant à payer</span>
+                                    <i class="fa-solid fa-piggy-bank budget-kpi-icon icon-danger"></i>
+                                </div>
+                                <div class="budget-kpi-value" id="kpiRestant">0 DA</div>
+                                <div class="budget-kpi-sub" id="kpiAvancement">Avancement : 0%</div>
+                            </div>
+                        </div>
+
+                        <!-- Onglets Montant -->
+                        <div class="users-tabs">
+                            <button class="users-tab active" data-montant-tab="devis">
+                                <i class="fa-solid fa-file-invoice"></i> Devis
+                            </button>
+                            <button class="users-tab" data-montant-tab="taches">
+                                <i class="fa-solid fa-tasks"></i> Tâches
+                            </button>
+                            <button class="users-tab" data-montant-tab="situations">
+                                <i class="fa-solid fa-calendar-check"></i> Situations
+                            </button>
+                            <button class="users-tab" data-montant-tab="avenants">
+                                <i class="fa-solid fa-file-pen"></i> Avenants
+                            </button>
+                            <button class="users-tab" data-montant-tab="factures">
+                                <i class="fa-solid fa-receipt"></i> Factures
+                            </button>
+                            <button class="users-tab" data-montant-tab="graphique">
+                                <i class="fa-solid fa-chart-pie"></i> Graphique
+                            </button>
+                        </div>
+
+                        <!-- Panel Devis -->
+                        <div class="users-panel active" id="montant-devis">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">
+                                        <i class="fa-solid fa-file-invoice"></i> Détail du Devis par Lots
+                                    </h2>
+                                    <button class="btn btn-primary btn-sm" id="addDevisLigneBtn">
+                                        <i class="fa-solid fa-plus"></i> Ajouter un lot
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Désignation du lot</th>
+                                                <th>Montant HT (DA)</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="devisTableBody">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="font-weight:bold;">
+                                                <td colspan="2">Total HT</td>
+                                                <td id="devisTotalHT">0 DA</td>
+                                                <td></td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="2">TVA (19%)</td>
+                                                <td id="devisTVA">0 DA</td>
+                                                <td></td>
+                                            </tr>
+                                            <tr style="font-weight:bold; font-size:1.1em;">
+                                                <td colspan="2">Total TTC</td>
+                                                <td id="devisTTC">0 DA</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
                             </div>
-                            <div class="chart-container-large">
-                                <canvas id="budgetEvolutionChart"></canvas>
+                        </div>
+
+                        <!-- Panel Tâches -->
+                        <div class="users-panel hidden" id="montant-taches">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">
+                                        <i class="fa-solid fa-tasks"></i> Tâches du Projet
+                                    </h2>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Titre</th>
+                                                <th>Description</th>
+                                                <th>Montant prévu</th>
+                                                <th>Montant réalisé</th>
+                                                <th>Avancement</th>
+                                                <th>Statut</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tachesTableBody">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="font-weight:bold;">
+                                                <td colspan="2">Total</td>
+                                                <td id="tachesTotalPrevu">0 DA</td>
+                                                <td id="tachesTotalRealise">0 DA</td>
+                                                <td id="tachesAvancementGlobal">0%</td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                        <div class="card chart-card-small">
-                            <div class="card-header">
-                                <h2 class="card-title">
-                                    <i class="fa-solid fa-chart-pie"></i> Répartition Dépenses
-                                </h2>
-                            </div>
-                            <div class="chart-container">
-                                <canvas id="expensesChart"></canvas>
+
+                        <!-- Panel Situations -->
+                        <div class="users-panel hidden" id="montant-situations">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">
+                                        <i class="fa-solid fa-calendar-check"></i> Situations de Paiement
+                                    </h2>
+                                    <button class="btn btn-primary btn-sm" id="addSituationBtn">
+                                        <i class="fa-solid fa-plus"></i> Nouvelle situation
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>N°</th>
+                                                <th>Date</th>
+                                                <th>Montant validé (DA)</th>
+                                                <th>% Cumulé</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="situationsTableBody">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="font-weight:bold;">
+                                                <td colspan="2">Montant restant</td>
+                                                <td id="situationsRestant" colspan="3">0 DA</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Panel Avenants -->
+                        <div class="users-panel hidden" id="montant-avenants">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">
+                                        <i class="fa-solid fa-file-pen"></i> Avenants
+                                    </h2>
+                                    <button class="btn btn-primary btn-sm" id="addAvenantBtn">
+                                        <i class="fa-solid fa-plus"></i> Nouvel avenant
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>N°</th>
+                                                <th>Date</th>
+                                                <th>Motif</th>
+                                                <th>Montant (DA)</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="avenantsTableBody">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr style="font-weight:bold;">
+                                                <td colspan="3">Nouveau montant total HT</td>
+                                                <td id="avenantsNewTotal" colspan="2">0 DA</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Factures -->
+                        <div class="users-panel hidden" id="montant-factures">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h2 class="card-title">
+                                        <i class="fa-solid fa-receipt"></i> Factures
+                                    </h2>
+                                    <div>
+                                        <button class="btn btn-outline btn-sm" id="printAllFacturesBtn">
+                                            <i class="fa-solid fa-print"></i> Imprimer tout
+                                        </button>
+                                        <button class="btn btn-primary btn-sm" id="addFactureBtn">
+                                            <i class="fa-solid fa-plus"></i> Nouvelle facture
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Numéro</th>
+                                                <th>Date</th>
+                                                <th>Montant (DA)</th>
+                                                <th>Statut</th>
+                                                <th>Situation liée</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="facturesTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Graphique -->
+                        <div class="users-panel hidden" id="montant-graphique">
+                            <div class="budget-charts">
+                                <div class="card chart-card-large">
+                                    <div class="card-header">
+                                        <h2 class="card-title">
+                                            <i class="fa-solid fa-chart-pie"></i> Avancement Global du Projet
+                                        </h2>
+                                    </div>
+                                    <div class="chart-container-large" style="display:flex; justify-content:center;">
+                                        <canvas id="montantPieChart" style="max-width:500px; max-height:500px;"></canvas>
+                                    </div>
+                                </div>
+                                <div class="card chart-card-small">
+                                    <div class="card-header">
+                                        <h2 class="card-title">
+                                            <i class="fa-solid fa-chart-bar"></i> Répartition par Tâches
+                                        </h2>
+                                    </div>
+                                    <div class="chart-container">
+                                        <canvas id="montantBarChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <!-- Table des Budgets -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2 class="card-title">
-                                <i class="fa-solid fa-table"></i> Détail par Projet
-                            </h2>
-                            <div class="table-actions">
-                                <input type="text"
-                                       placeholder="Rechercher..."
-                                       class="table-search"
-                                       id="budgetSearch" />
-                            </div>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="data-table budget-table">
-                                <thead>
-                                    <tr>
-                                        <th>Projet</th>
-                                        <th>Budget Alloué</th>
-                                        <th>Dépensé</th>
-                                        <th>Restant</th>
-                                        <th>Progression</th>
-                                        <th>Statut</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="budgetTableBody">
-                                    <!-- Rempli par JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Transactions Récentes -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h2 class="card-title">
-                                <i class="fa-solid fa-receipt"></i> Transactions Récentes
-                            </h2>
-                            <a href="#" class="card-action">
-                                Voir tout <i class="fa-solid fa-arrow-right"></i>
-                            </a>
-                        </div>
-                        <div class="transactions-list" id="transactionsList">
-                            <!-- Rempli par JS -->
-                        </div>
+                    <!-- Message quand aucun projet sélectionné -->
+                    <div id="montantPlaceholder" class="card" style="text-align:center; padding:60px 20px;">
+                        <i class="fa-solid fa-coins" style="font-size:3rem; color:var(--text-tertiary); margin-bottom:16px;"></i>
+                        <h3 style="color:var(--text-secondary);">Sélectionnez un projet</h3>
+                        <p style="color:var(--text-tertiary);">Choisissez un projet dans la liste ci-dessus pour afficher son suivi financier.</p>
                     </div>
                 </section>
 
@@ -961,66 +1126,54 @@
                 <section class="page-section" id="page-rapports">
                     <div class="page-header">
                         <div class="page-header-left">
-                            <h2 class="page-title">Rapports &amp; Analytics</h2>
+                            <h2 class="page-title">Rapports &amp; Documents</h2>
                             <p class="page-subtitle">
-                                Générez des rapports détaillés et analysez vos performances
+                                Créez, générez et imprimez vos rapports officiels
                             </p>
-                        </div>
-                        <div class="page-header-actions">
-                            <button class="btn btn-outline" id="scheduleReportBtn">
-                                <i class="fa-solid fa-clock"></i> Planifier
-                            </button>
-                            <button class="btn btn-primary" id="generateReportBtn">
-                                <i class="fa-solid fa-file-lines"></i> Générer Rapport
-                            </button>
                         </div>
                     </div>
 
                     <!-- Types de Rapports -->
                     <div class="reports-types">
-                        <div class="card report-type-card" data-report="performance">
-                            <div class="report-type-icon icon-primary">
-                                <i class="fa-solid fa-gauge-high"></i>
-                            </div>
-                            <h3 class="report-type-title">Performance</h3>
-                            <p class="report-type-desc">
-                                Analyse des performances des chantiers
-                            </p>
-                            <button class="btn btn-sm btn-outline">Générer</button>
-                        </div>
-                        <div class="card report-type-card" data-report="financial">
-                            <div class="report-type-icon icon-success">
-                                <i class="fa-solid fa-chart-pie"></i>
-                            </div>
-                            <h3 class="report-type-title">Financier</h3>
-                            <p class="report-type-desc">Rapport budgétaire et dépenses</p>
-                            <button class="btn btn-sm btn-outline">Générer</button>
-                        </div>
-                        <div class="card report-type-card" data-report="progress">
-                            <div class="report-type-icon icon-warning">
-                                <i class="fa-solid fa-bars-progress"></i>
-                            </div>
-                            <h3 class="report-type-title">Avancement</h3>
-                            <p class="report-type-desc">
-                                Suivi de l'avancement des projets
-                            </p>
-                            <button class="btn btn-sm btn-outline">Générer</button>
-                        </div>
-                        <div class="card report-type-card" data-report="resources">
-                            <div class="report-type-icon icon-info">
-                                <i class="fa-solid fa-people-group"></i>
-                            </div>
-                            <h3 class="report-type-title">Ressources</h3>
-                            <p class="report-type-desc">Utilisation des ressources</p>
-                            <button class="btn btn-sm btn-outline">Générer</button>
-                        </div>
                         <div class="card report-type-card" data-report="quality">
                             <div class="report-type-icon icon-danger">
                                 <i class="fa-solid fa-clipboard-check"></i>
                             </div>
-                            <h3 class="report-type-title">Qualité</h3>
+                            <h3 class="report-type-title">Contrôle Qualité</h3>
                             <p class="report-type-desc">Contrôle qualité et conformité</p>
-                            <button class="btn btn-sm btn-outline">Générer</button>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Qualite">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="bordereau">
+                            <div class="report-type-icon icon-primary">
+                                <i class="fa-solid fa-file-invoice"></i>
+                            </div>
+                            <h3 class="report-type-title">Bordereau</h3>
+                            <p class="report-type-desc">Bordereau des prix et quantités</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Bordereau">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="courrier">
+                            <div class="report-type-icon icon-success">
+                                <i class="fa-solid fa-envelope-open-text"></i>
+                            </div>
+                            <h3 class="report-type-title">Courrier</h3>
+                            <p class="report-type-desc">Courrier officiel du projet</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Courrier">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="reception-provisoire">
+                            <div class="report-type-icon icon-warning">
+                                <i class="fa-solid fa-file-signature"></i>
+                            </div>
+                            <h3 class="report-type-title">Réception Provisoire</h3>
+                            <p class="report-type-desc">Demande de réception provisoire</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="ReceptionProvisoire">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="reception-definitive">
+                            <div class="report-type-icon icon-info">
+                                <i class="fa-solid fa-file-circle-check"></i>
+                            </div>
+                            <h3 class="report-type-title">Réception Définitive</h3>
+                            <p class="report-type-desc">Demande de réception définitive</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="ReceptionDefinitive">Créer</button>
                         </div>
                         <div class="card report-type-card" data-report="custom">
                             <div class="report-type-icon icon-purple">
@@ -1028,31 +1181,7 @@
                             </div>
                             <h3 class="report-type-title">Personnalisé</h3>
                             <p class="report-type-desc">Créez votre propre rapport</p>
-                            <button class="btn btn-sm btn-outline">Créer</button>
-                        </div>
-                    </div>
-
-                    <!-- Analytics Dashboard -->
-                    <div class="analytics-grid">
-                        <div class="card analytics-card">
-                            <div class="card-header">
-                                <h2 class="card-title">
-                                    <i class="fa-solid fa-chart-area"></i> Tendances Mensuelles
-                                </h2>
-                            </div>
-                            <div class="chart-container">
-                                <canvas id="trendsChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="card analytics-card">
-                            <div class="card-header">
-                                <h2 class="card-title">
-                                    <i class="fa-solid fa-ranking-star"></i> Top Performances
-                                </h2>
-                            </div>
-                            <div class="performance-list" id="performanceList">
-                                <!-- Rempli par JS -->
-                            </div>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Personnalise">Créer</button>
                         </div>
                     </div>
 
@@ -1062,11 +1191,6 @@
                             <h2 class="card-title">
                                 <i class="fa-solid fa-folder-open"></i> Rapports Générés
                             </h2>
-                            <div class="card-tabs">
-                                <button class="card-tab active">Récents</button>
-                                <button class="card-tab">Planifiés</button>
-                                <button class="card-tab">Archivés</button>
-                            </div>
                         </div>
                         <div class="reports-list" id="reportsList">
                             <!-- Rempli par JS -->
@@ -1185,11 +1309,12 @@
                             </p>
                         </div>
                         <div class="page-header-actions">
-                            <button class="btn btn-outline" id="importUsersBtn">
+                            <label class="btn btn-outline" style="cursor:pointer;margin:0;">
                                 <i class="fa-solid fa-upload"></i> Importer
-                            </button>
-                            <button class="btn btn-primary" id="newUserBtn">
-                                <i class="fa-solid fa-user-plus"></i> Nouvel Utilisateur
+                                <input type="file" id="importUsersFile" accept=".xlsx,.xls" style="display:none;" />
+                            </label>
+                            <button class="btn btn-outline" id="exportUsersBtn">
+                                <i class="fa-solid fa-download"></i> Exporter Excel
                             </button>
                         </div>
                     </div>
@@ -1201,7 +1326,7 @@
                                 <i class="fa-solid fa-users"></i>
                             </div>
                             <div class="user-stat-info">
-                                <span class="user-stat-value">156</span>
+                                <span class="user-stat-value" id="statTotalUsers">0</span>
                                 <span class="user-stat-label">Utilisateurs Total</span>
                             </div>
                         </div>
@@ -1210,7 +1335,7 @@
                                 <i class="fa-solid fa-user-check"></i>
                             </div>
                             <div class="user-stat-info">
-                                <span class="user-stat-value">142</span>
+                                <span class="user-stat-value" id="statActiveUsers">0</span>
                                 <span class="user-stat-label">Actifs</span>
                             </div>
                         </div>
@@ -1219,7 +1344,7 @@
                                 <i class="fa-solid fa-user-clock"></i>
                             </div>
                             <div class="user-stat-info">
-                                <span class="user-stat-value">8</span>
+                                <span class="user-stat-value" id="statPendingUsers">0</span>
                                 <span class="user-stat-label">En attente</span>
                             </div>
                         </div>
@@ -1228,8 +1353,8 @@
                                 <i class="fa-solid fa-user-group"></i>
                             </div>
                             <div class="user-stat-info">
-                                <span class="user-stat-value">12</span>
-                                <span class="user-stat-label">Équipes</span>
+                                <span class="user-stat-value" id="statRolesCount">5</span>
+                                <span class="user-stat-label">Rôles</span>
                             </div>
                         </div>
                     </div>
@@ -1238,6 +1363,10 @@
                     <div class="users-tabs">
                         <button class="users-tab active" data-tab="users">
                             <i class="fa-solid fa-user"></i> Utilisateurs
+                        </button>
+                        <button class="users-tab" data-tab="pending">
+                            <i class="fa-solid fa-user-clock"></i> Demandes d'inscription
+                            <span class="tab-badge" id="pendingBadge" style="display:none;"></span>
                         </button>
                         <button class="users-tab" data-tab="teams">
                             <i class="fa-solid fa-people-group"></i> Équipes
@@ -1259,18 +1388,11 @@
                             <div class="filter-group">
                                 <select class="filter-select" id="filterRole">
                                     <option value="">Tous les rôles</option>
-                                    <option value="admin">Administrateur</option>
-                                    <option value="manager">Chef de Projet</option>
-                                    <option value="engineer">Ingénieur</option>
-                                    <option value="technician">Technicien</option>
-                                    <option value="viewer">Observateur</option>
-                                </select>
-                                <select class="filter-select" id="filterTeam">
-                                    <option value="">Toutes les équipes</option>
-                                    <option value="infrastructure">Infrastructure</option>
-                                    <option value="batiment">Bâtiment</option>
-                                    <option value="hydraulique">Hydraulique</option>
-                                    <option value="energie">Énergie</option>
+                                    <option value="Gerant">Gérant</option>
+                                    <option value="CoGerant">Co-Gérant</option>
+                                    <option value="DirecteurTechnique">Directeur Technique</option>
+                                    <option value="Ingenieur">Ingénieur</option>
+                                    <option value="Secretaire">Secrétaire</option>
                                 </select>
                             </div>
                         </div>
@@ -1279,9 +1401,23 @@
                         </div>
                     </div>
 
+                    <!-- Demandes d'inscription Panel -->
+                    <div class="users-panel hidden" id="pendingPanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">
+                                    <i class="fa-solid fa-user-clock"></i> Demandes d'inscription en attente
+                                </h2>
+                            </div>
+                            <div id="pendingList">
+                                <!-- Rempli par JS -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Équipes Panel -->
                     <div class="users-panel hidden" id="teamsPanel">
-                        <div class="teams-grid" id="teamsGrid">
+                        <div id="teamsGrid" class="teams-grid">
                             <!-- Rempli par JS -->
                         </div>
                     </div>
@@ -1291,9 +1427,6 @@
                         <div class="roles-container">
                             <div class="roles-list" id="rolesList">
                                 <!-- Rempli par JS -->
-                            </div>
-                            <div class="permissions-editor" id="permissionsEditor">
-                                <h3>Sélectionnez un rôle pour modifier ses permissions</h3>
                             </div>
                         </div>
                     </div>
@@ -1315,9 +1448,7 @@
                     <div class="settings-layout">
                         <!-- Menu Paramètres -->
                         <nav class="settings-nav">
-                            <a href="#"
-                               class="settings-nav-item active"
-                               data-setting="general">
+                            <a href="#" class="settings-nav-item active" data-setting="general">
                                 <i class="fa-solid fa-sliders"></i>
                                 <span>Général</span>
                             </a>
@@ -1325,21 +1456,13 @@
                                 <i class="fa-solid fa-building"></i>
                                 <span>Entreprise</span>
                             </a>
-                            <a href="#"
-                               class="settings-nav-item"
-                               data-setting="notifications">
+                            <a href="#" class="settings-nav-item" data-setting="notifications">
                                 <i class="fa-solid fa-bell"></i>
                                 <span>Notifications</span>
                             </a>
                             <a href="#" class="settings-nav-item" data-setting="security">
                                 <i class="fa-solid fa-shield-halved"></i>
                                 <span>Sécurité</span>
-                            </a>
-                            <a href="#"
-                               class="settings-nav-item"
-                               data-setting="integrations">
-                                <i class="fa-solid fa-plug"></i>
-                                <span>Intégrations</span>
                             </a>
                             <a href="#" class="settings-nav-item" data-setting="appearance">
                                 <i class="fa-solid fa-palette"></i>
@@ -1356,49 +1479,33 @@
                             <!-- Général -->
                             <div class="settings-panel active" id="setting-general">
                                 <div class="settings-section">
-                                    <h3 class="settings-section-title">
-                                        Préférences Générales
-                                    </h3>
+                                    <h3 class="settings-section-title">Préférences Générales</h3>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label class="form-label">Langue</label>
-                                            <select class="form-select">
+                                            <select class="form-select" id="settingLang">
                                                 <option value="fr" selected>Français</option>
                                                 <option value="en">English</option>
-                                                <option value="ar">العربية</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">Fuseau horaire</label>
-                                            <select class="form-select">
-                                                <option value="Europe/Paris" selected>
-                                                    Europe/Paris (UTC+1)
-                                                </option>
-                                                <option value="Africa/Casablanca">
-                                                    Africa/Casablanca (UTC+0)
-                                                </option>
-                                                <option value="Africa/Algiers">
-                                                    Africa/Algiers (UTC+1)
-                                                </option>
+                                            <select class="form-select" id="settingTimezone">
+                                                <option value="Africa/Algiers" selected>Africa/Algiers (UTC+1)</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">Format de date</label>
-                                            <select class="form-select">
-                                                <option value="dd/mm/yyyy" selected>
-                                                    DD/MM/YYYY
-                                                </option>
-                                                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
-                                                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                                            <select class="form-select" id="settingDateFormat">
+                                                <option value="dd/MM/yyyy" selected>DD/MM/YYYY</option>
+                                                <option value="yyyy-MM-dd">YYYY-MM-DD</option>
                                             </select>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">Devise</label>
-                                            <select class="form-select">
-                                                <option value="EUR" selected>Euro (€)</option>
-                                                <option value="USD">Dollar ($)</option>
-                                                <option value="MAD">Dirham (DH)</option>
-                                                <option value="DZD">Dinar (DA)</option>
+                                            <select class="form-select" id="settingCurrency">
+                                                <option value="DZD" selected>Dinar algérien (DA)</option>
+                                                <option value="EUR">Euro (€)</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1409,39 +1516,30 @@
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Afficher les KPIs</span>
-                                                <span class="toggle-desc">
-                                                    Cartes de statistiques en haut du tableau de
-                                                    bord
-                                                </span>
+                                                <span class="toggle-desc">Cartes de statistiques en haut du tableau de bord</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingShowKpi" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Graphiques animés</span>
-                                                <span class="toggle-desc">
-                                                    Animations lors du chargement des graphiques
-                                                </span>
+                                                <span class="toggle-desc">Animations lors du chargement des graphiques</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingAnimCharts" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
-                                                <span class="toggle-label">
-                                                    Actualisation automatique
-                                                </span>
-                                                <span class="toggle-desc">
-                                                    Mise à jour des données toutes les 5 minutes
-                                                </span>
+                                                <span class="toggle-label">Actualisation automatique</span>
+                                                <span class="toggle-desc">Mise à jour des données toutes les 5 minutes</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" />
+                                                <input type="checkbox" id="settingAutoRefresh" />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
@@ -1452,51 +1550,25 @@
                             <!-- Entreprise -->
                             <div class="settings-panel hidden" id="setting-company">
                                 <div class="settings-section">
-                                    <h3 class="settings-section-title">
-                                        Informations de l'Entreprise
-                                    </h3>
+                                    <h3 class="settings-section-title">Informations de l'Entreprise</h3>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label class="form-label">Nom de l'entreprise</label>
-                                            <input type="text"
-                                                   class="form-input"
-                                                   value="Ingé-Projets SARL" />
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label">Numéro SIRET</label>
-                                            <input type="text"
-                                                   class="form-input"
-                                                   value="123 456 789 00012" />
+                                            <input type="text" class="form-input" id="settingCompanyName" value="Ingé-Projets SARL" />
                                         </div>
                                         <div class="form-row">
                                             <div class="form-group">
                                                 <label class="form-label">Téléphone</label>
-                                                <input type="tel"
-                                                       class="form-input"
-                                                       value="+33 1 23 45 67 89" />
+                                                <input type="tel" class="form-input" id="settingCompanyPhone" value="+213 XX XX XX XX" />
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Email</label>
-                                                <input type="email"
-                                                       class="form-input"
-                                                       value="contact@@inge-projets.fr" />
+                                                <input type="email" class="form-input" id="settingCompanyEmail" value="contact@@inge-projets.dz" />
                                             </div>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">Adresse</label>
-                                            <textarea class="form-textarea" rows="3">123 Avenue des Travaux Publics
-75001 Paris, France</textarea>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label">Logo de l'entreprise</label>
-                                            <div class="file-upload">
-                                                <div class="file-preview">
-                                                    <img src="~/images/logo.png" alt="Logo" />
-                                                </div>
-                                                <button class="btn btn-outline">
-                                                    Changer le logo
-                                                </button>
-                                            </div>
+                                            <textarea class="form-textarea" id="settingCompanyAddress" rows="3">Alger, Algérie</textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -1505,69 +1577,55 @@
                             <!-- Notifications -->
                             <div class="settings-panel hidden" id="setting-notifications">
                                 <div class="settings-section">
-                                    <h3 class="settings-section-title">
-                                        Préférences de Notifications
-                                    </h3>
+                                    <h3 class="settings-section-title">Préférences de Notifications</h3>
                                     <div class="settings-toggles">
                                         <div class="toggle-item">
                                             <div class="toggle-info">
-                                                <span class="toggle-label">
-                                                    Notifications par email
-                                                </span>
-                                                <span class="toggle-desc">
-                                                    Recevoir les alertes importantes par email
-                                                </span>
+                                                <span class="toggle-label">Notifications par email</span>
+                                                <span class="toggle-desc">Recevoir les alertes importantes par email</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingNotifEmail" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Notifications push</span>
-                                                <span class="toggle-desc">
-                                                    Alertes en temps réel sur le navigateur
-                                                </span>
+                                                <span class="toggle-desc">Alertes en temps réel sur le navigateur</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingNotifPush" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Alertes budget</span>
-                                                <span class="toggle-desc">
-                                                    Notification en cas de dépassement budgétaire
-                                                </span>
+                                                <span class="toggle-desc">Notification en cas de dépassement budgétaire</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingNotifBudget" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Rappels de tâches</span>
-                                                <span class="toggle-desc">
-                                                    Rappels avant les échéances
-                                                </span>
+                                                <span class="toggle-desc">Rappels avant les échéances</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" checked />
+                                                <input type="checkbox" id="settingNotifTasks" checked />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
                                         <div class="toggle-item">
                                             <div class="toggle-info">
                                                 <span class="toggle-label">Rapport hebdomadaire</span>
-                                                <span class="toggle-desc">
-                                                    Résumé envoyé chaque lundi
-                                                </span>
+                                                <span class="toggle-desc">Résumé envoyé chaque lundi</span>
                                             </div>
                                             <label class="toggle-switch">
-                                                <input type="checkbox" />
+                                                <input type="checkbox" id="settingNotifWeekly" />
                                                 <span class="toggle-slider"></span>
                                             </label>
                                         </div>
@@ -1578,164 +1636,36 @@
                             <!-- Sécurité -->
                             <div class="settings-panel hidden" id="setting-security">
                                 <div class="settings-section">
-                                    <h3 class="settings-section-title">Sécurité du Compte</h3>
+                                    <h3 class="settings-section-title">Changer le mot de passe</h3>
                                     <div class="settings-form">
                                         <div class="form-group">
                                             <label class="form-label">Mot de passe actuel</label>
-                                            <input type="password"
-                                                   class="form-input"
-                                                   placeholder="••••••••" />
+                                            <input type="password" class="form-input" id="secCurrentPassword" placeholder="••••••••" />
                                         </div>
                                         <div class="form-row">
                                             <div class="form-group">
                                                 <label class="form-label">Nouveau mot de passe</label>
-                                                <input type="password"
-                                                       class="form-input"
-                                                       placeholder="••••••••" />
+                                                <input type="password" class="form-input" id="secNewPassword" placeholder="••••••••" />
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Confirmer</label>
-                                                <input type="password"
-                                                       class="form-input"
-                                                       placeholder="••••••••" />
+                                                <input type="password" class="form-input" id="secConfirmPassword" placeholder="••••••••" />
                                             </div>
                                         </div>
-                                        <button class="btn btn-primary">
-                                            Changer le mot de passe
+                                        <button class="btn btn-primary" id="changePasswordBtn" type="button">
+                                            <i class="fa-solid fa-key"></i> Changer le mot de passe
                                         </button>
                                     </div>
                                 </div>
                                 <div class="settings-section">
-                                    <h3 class="settings-section-title">
-                                        Authentification à deux facteurs
-                                    </h3>
-                                    <div class="toggle-item">
-                                        <div class="toggle-info">
-                                            <span class="toggle-label">Activer 2FA</span>
-                                            <span class="toggle-desc">
-                                                Ajouter une couche de sécurité supplémentaire
-                                            </span>
-                                        </div>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" />
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="settings-section">
                                     <h3 class="settings-section-title">Sessions Actives</h3>
-                                    <div class="sessions-list">
+                                    <div class="sessions-list" id="sessionsList">
                                         <div class="session-item session-current">
-                                            <div class="session-icon">
-                                                <i class="fa-solid fa-desktop"></i>
-                                            </div>
+                                            <div class="session-icon"><i class="fa-solid fa-desktop"></i></div>
                                             <div class="session-info">
-                                                <span class="session-device">
-                                                    Windows 11 - Chrome
-                                                </span>
-                                                <span class="session-location">
-                                                    Paris, France • Session actuelle
-                                                </span>
+                                                <span class="session-device" id="sessionCurrentDevice">—</span>
+                                                <span class="session-location">Session actuelle</span>
                                             </div>
-                                        </div>
-                                        <div class="session-item">
-                                            <div class="session-icon">
-                                                <i class="fa-solid fa-mobile"></i>
-                                            </div>
-                                            <div class="session-info">
-                                                <span class="session-device">iPhone 15 - Safari</span>
-                                                <span class="session-location">
-                                                    Paris, France • Il y a 2h
-                                                </span>
-                                            </div>
-                                            <button class="btn btn-sm btn-outline btn-danger">
-                                                Déconnecter
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Intégrations -->
-                            <div class="settings-panel hidden" id="setting-integrations">
-                                <div class="settings-section">
-                                    <h3 class="settings-section-title">
-                                        Intégrations Disponibles
-                                    </h3>
-                                    <div class="integrations-grid">
-                                        <div class="integration-card integration-connected">
-                                            <div class="integration-logo">
-                                                <i class="fa-brands fa-google"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">Google Calendar</span>
-                                                <span class="integration-status status-connected">Connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-outline">
-                                                Configurer
-                                            </button>
-                                        </div>
-                                        <div class="integration-card integration-connected">
-                                            <div class="integration-logo">
-                                                <i class="fa-brands fa-microsoft"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">Microsoft 365</span>
-                                                <span class="integration-status status-connected">Connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-outline">
-                                                Configurer
-                                            </button>
-                                        </div>
-                                        <div class="integration-card">
-                                            <div class="integration-logo">
-                                                <i class="fa-brands fa-slack"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">Slack</span>
-                                                <span class="integration-status">Non connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-primary">
-                                                Connecter
-                                            </button>
-                                        </div>
-                                        <div class="integration-card">
-                                            <div class="integration-logo">
-                                                <i class="fa-solid fa-file-invoice"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">
-                                                    Sage Comptabilité
-                                                </span>
-                                                <span class="integration-status">Non connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-primary">
-                                                Connecter
-                                            </button>
-                                        </div>
-                                        <div class="integration-card">
-                                            <div class="integration-logo">
-                                                <i class="fa-solid fa-map-location-dot"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">Géolocalisation</span>
-                                                <span class="integration-status">Non connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-primary">
-                                                Connecter
-                                            </button>
-                                        </div>
-                                        <div class="integration-card">
-                                            <div class="integration-logo">
-                                                <i class="fa-solid fa-cloud"></i>
-                                            </div>
-                                            <div class="integration-info">
-                                                <span class="integration-name">Stockage Cloud</span>
-                                                <span class="integration-status">Non connecté</span>
-                                            </div>
-                                            <button class="btn btn-sm btn-primary">
-                                                Connecter
-                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1747,10 +1677,7 @@
                                     <h3 class="settings-section-title">Thème</h3>
                                     <div class="theme-selector">
                                         <label class="theme-option active">
-                                            <input type="radio"
-                                                   name="theme"
-                                                   value="light"
-                                                   checked />
+                                            <input type="radio" name="theme" value="light" checked />
                                             <div class="theme-preview theme-light">
                                                 <div class="theme-preview-sidebar"></div>
                                                 <div class="theme-preview-content"></div>
@@ -1765,64 +1692,21 @@
                                             </div>
                                             <span>Sombre</span>
                                         </label>
-                                        <label class="theme-option">
-                                            <input type="radio" name="theme" value="auto" />
-                                            <div class="theme-preview theme-auto">
-                                                <div class="theme-preview-sidebar"></div>
-                                                <div class="theme-preview-content"></div>
-                                            </div>
-                                            <span>Automatique</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="settings-section">
-                                    <h3 class="settings-section-title">Couleur d'accent</h3>
-                                    <div class="color-selector">
-                                        <label class="color-option active"
-                                               style="--color: #e50908">
-                                            <input type="radio"
-                                                   name="accent"
-                                                   value="red"
-                                                   checked />
-                                        </label>
-                                        <label class="color-option" style="--color: #3b82f6">
-                                            <input type="radio" name="accent" value="blue" />
-                                        </label>
-                                        <label class="color-option" style="--color: #10b981">
-                                            <input type="radio" name="accent" value="green" />
-                                        </label>
-                                        <label class="color-option" style="--color: #8b5cf6">
-                                            <input type="radio"
-                                                   name="accent"
-                                                   value="purple" />
-                                        </label>
-                                        <label class="color-option" style="--color: #f59e0b">
-                                            <input type="radio"
-                                                   name="accent"
-                                                   value="orange" />
-                                        </label>
                                     </div>
                                 </div>
                                 <div class="settings-section">
                                     <h3 class="settings-section-title">Densité d'affichage</h3>
                                     <div class="density-selector">
                                         <label class="density-option">
-                                            <input type="radio"
-                                                   name="density"
-                                                   value="compact" />
+                                            <input type="radio" name="density" value="compact" />
                                             <span>Compact</span>
                                         </label>
                                         <label class="density-option active">
-                                            <input type="radio"
-                                                   name="density"
-                                                   value="normal"
-                                                   checked />
+                                            <input type="radio" name="density" value="normal" checked />
                                             <span>Normal</span>
                                         </label>
                                         <label class="density-option">
-                                            <input type="radio"
-                                                   name="density"
-                                                   value="comfortable" />
+                                            <input type="radio" name="density" value="comfortable" />
                                             <span>Confortable</span>
                                         </label>
                                     </div>
@@ -1837,22 +1721,20 @@
                                         <div class="data-action-card">
                                             <i class="fa-solid fa-download"></i>
                                             <h4>Exporter les données</h4>
-                                            <p>
-                                                Téléchargez toutes vos données au format JSON ou CSV
-                                            </p>
-                                            <button class="btn btn-outline">Exporter</button>
+                                            <p>Téléchargez toutes vos données au format JSON</p>
+                                            <button class="btn btn-outline" id="dataExportJsonBtn">Exporter JSON</button>
                                         </div>
                                         <div class="data-action-card">
-                                            <i class="fa-solid fa-upload"></i>
-                                            <h4>Importer des données</h4>
-                                            <p>Importez des données depuis un fichier externe</p>
-                                            <button class="btn btn-outline">Importer</button>
+                                            <i class="fa-solid fa-file-excel"></i>
+                                            <h4>Exporter en Excel</h4>
+                                            <p>Projets et utilisateurs au format Excel</p>
+                                            <button class="btn btn-outline" id="dataExportExcelBtn">Exporter Excel</button>
                                         </div>
                                         <div class="data-action-card">
                                             <i class="fa-solid fa-clock-rotate-left"></i>
                                             <h4>Sauvegardes automatiques</h4>
-                                            <p>Dernière sauvegarde : il y a 2 heures</p>
-                                            <button class="btn btn-outline">Configurer</button>
+                                            <p id="dataLastBackup">Dernière sauvegarde : —</p>
+                                            <button class="btn btn-outline" id="dataBackupNowBtn">Sauvegarder maintenant</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1861,27 +1743,10 @@
                                     <div class="danger-zone">
                                         <div class="danger-item">
                                             <div class="danger-info">
-                                                <span class="danger-label">
-                                                    Réinitialiser les paramètres
-                                                </span>
-                                                <span class="danger-desc">
-                                                    Remettre tous les paramètres par défaut
-                                                </span>
+                                                <span class="danger-label">Réinitialiser les paramètres</span>
+                                                <span class="danger-desc">Remettre tous les paramètres par défaut</span>
                                             </div>
-                                            <button class="btn btn-outline btn-danger">
-                                                Réinitialiser
-                                            </button>
-                                        </div>
-                                        <div class="danger-item">
-                                            <div class="danger-info">
-                                                <span class="danger-label">
-                                                    Supprimer toutes les données
-                                                </span>
-                                                <span class="danger-desc">
-                                                    Cette action est irréversible
-                                                </span>
-                                            </div>
-                                            <button class="btn btn-danger">Supprimer</button>
+                                            <button class="btn btn-outline btn-danger" id="dataResetSettingsBtn">Réinitialiser</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1891,9 +1756,7 @@
 
                     <!-- Bouton Sauvegarder -->
                     <div class="settings-footer">
-                        <button class="btn btn-outline" id="resetSettingsBtn">
-                            Annuler les modifications
-                        </button>
+                        <button class="btn btn-outline" id="resetSettingsBtn">Annuler les modifications</button>
                         <button class="btn btn-primary" id="saveSettingsBtn">
                             <i class="fa-solid fa-check"></i> Sauvegarder
                         </button>
@@ -2372,6 +2235,18 @@
                             <span class="form-range-value" id="taskProgressionValue">0%</span>
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant prévu (DA)</label>
+                            <input type="number" class="form-input" id="taskMontantPrevu"
+                                   min="0" step="0.01" value="0" placeholder="Ex: 2000000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Montant réalisé (DA)</label>
+                            <input type="number" class="form-input" id="taskMontantRealise"
+                                   min="0" step="0.01" value="0" />
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Commentaire</label>
                         <textarea class="form-textarea"
@@ -2479,6 +2354,18 @@
                         <div class="form-input-group">
                             <input type="range" class="form-range" id="editTaskProgression" min="0" max="100" value="0" />
                             <span class="form-range-value" id="editTaskProgressionValue">0%</span>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant prévu (DA)</label>
+                            <input type="number" class="form-input" id="editTaskMontantPrevu"
+                                   min="0" step="0.01" value="0" placeholder="Ex: 2000000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Montant réalisé (DA)</label>
+                            <input type="number" class="form-input" id="editTaskMontantRealise"
+                                   min="0" step="0.01" value="0" />
                         </div>
                     </div>
                     <div class="form-group">
@@ -2721,6 +2608,281 @@
                 <button class="btn btn-outline" id="cancelDeleteDocBtn">Annuler</button>
                 <button class="btn btn-danger" id="confirmDeleteDocBtn">
                     <i class="fa-solid fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Rapport Formulaire -->
+    <div class="modal-overlay" id="rapportFormModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 class="modal-title" id="rapportFormTitle">
+                    <i class="fa-solid fa-file-lines"></i> Nouveau Rapport
+                </h2>
+                <button class="modal-close" id="closeRapportFormModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="rapportForm">
+                    <input type="hidden" id="rapportType" />
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2">
+                            <label class="form-label">Titre du rapport *</label>
+                            <input type="text" class="form-input" id="rapportTitre" required placeholder="Ex: Contrôle qualité – Lot 3" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Projet associé</label>
+                            <select class="form-select" id="rapportProjet">
+                                <option value="">Aucun projet</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Champs dynamiques selon le type -->
+                    <div id="rapportDynamicFields"></div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelRapportFormBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveRapportBtn">
+                    <i class="fa-solid fa-check"></i> Générer le rapport
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Visualisation / Impression Rapport -->
+    <div class="modal-overlay" id="rapportViewModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 class="modal-title" id="rapportViewTitle">
+                    <i class="fa-solid fa-eye"></i> Rapport
+                </h2>
+                <button class="modal-close" id="closeRapportViewModal">&times;</button>
+            </div>
+            <div class="modal-body" id="rapportViewBody" style="padding:0;">
+                <div id="rapportPrintArea" class="rapport-print-area">
+                    <!-- Contenu du rapport pour impression -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="closeRapportViewBtn">Fermer</button>
+                <button class="btn btn-primary" id="printRapportBtn">
+                    <i class="fa-solid fa-print"></i> Imprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODALES MONTANT – Ajout Lot / Tâche / Situation / Avenant / Facture -->
+    <!-- ========================================== -->
+
+    <!-- Modal Ajouter un Lot (Devis) -->
+    <div class="modal-overlay" id="montantDevisModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-file-invoice"></i> Ajouter un Lot
+                </h2>
+                <button class="modal-close" id="closeMontantDevisModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="montantDevisForm">
+                    <div class="form-group">
+                        <label class="form-label">Désignation du lot *</label>
+                        <input type="text" class="form-input" id="mDevisDesignation" required
+                               placeholder="Ex: Gros œuvre, Maçonnerie..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Montant HT (DA) *</label>
+                        <input type="number" class="form-input" id="mDevisMontantHT" required
+                               min="0" step="0.01" placeholder="Ex: 5000000" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelMontantDevisBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveMontantDevisBtn">
+                    <i class="fa-solid fa-check"></i> Ajouter le lot
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter une Tâche Projet -->
+    <div class="modal-overlay" id="montantTacheModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-pen"></i> Modifier les montants
+                </h2>
+                <button class="modal-close" id="closeMontantTacheModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="montantTacheForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant prévu (DA) *</label>
+                            <input type="number" class="form-input" id="mTacheMontantPrevu" required
+                                   min="0" step="0.01" placeholder="Ex: 2000000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Montant réalisé (DA)</label>
+                            <input type="number" class="form-input" id="mTacheMontantRealise"
+                                   min="0" step="0.01" value="0" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelMontantTacheBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveMontantTacheBtn">
+                    <i class="fa-solid fa-check"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter une Situation de Paiement -->
+    <div class="modal-overlay" id="montantSituationModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-calendar-check"></i> Nouvelle Situation
+                </h2>
+                <button class="modal-close" id="closeMontantSituationModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="montantSituationForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">N° de situation *</label>
+                            <input type="number" class="form-input" id="mSituationNumero" required
+                                   min="1" placeholder="Ex: 1" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-input" id="mSituationDate" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant validé (DA) *</label>
+                            <input type="number" class="form-input" id="mSituationMontant" required
+                                   min="0" step="0.01" placeholder="Ex: 2000000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">% Cumulé *</label>
+                            <input type="number" class="form-input" id="mSituationPourcentage" required
+                                   min="0" max="100" step="0.1" placeholder="Ex: 25.5" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelMontantSituationBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveMontantSituationBtn">
+                    <i class="fa-solid fa-check"></i> Ajouter la situation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter un Avenant -->
+    <div class="modal-overlay" id="montantAvenantModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-file-pen"></i> Nouvel Avenant
+                </h2>
+                <button class="modal-close" id="closeMontantAvenantModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="montantAvenantForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">N° d'avenant *</label>
+                            <input type="number" class="form-input" id="mAvenantNumero" required
+                                   min="1" placeholder="Ex: 1" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-input" id="mAvenantDate" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Motif *</label>
+                        <textarea class="form-textarea" id="mAvenantMotif" rows="2" required
+                                  placeholder="Ex: Ajout d'un parking souterrain"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Montant (DA) * <small style="color:var(--text-tertiary)">(positif = ajout, négatif = retrait)</small></label>
+                        <input type="number" class="form-input" id="mAvenantMontant" required
+                               step="0.01" placeholder="Ex: 1500000 ou -200000" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelMontantAvenantBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveMontantAvenantBtn">
+                    <i class="fa-solid fa-check"></i> Ajouter l'avenant
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter une Facture -->
+    <div class="modal-overlay" id="montantFactureModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-receipt"></i> Nouvelle Facture
+                </h2>
+                <button class="modal-close" id="closeMontantFactureModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="montantFactureForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">N° de facture *</label>
+                            <input type="text" class="form-input" id="mFactureNumero" required
+                                   placeholder="Ex: FAC-2025-001" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-input" id="mFactureDate" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant (DA) *</label>
+                            <input type="number" class="form-input" id="mFactureMontant" required
+                                   min="0" step="0.01" placeholder="Ex: 2000000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" id="mFactureStatut">
+                                <option value="Elaboree">Élaborée</option>
+                                <option value="Validee">Validée</option>
+                                <option value="Signee">Signée</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Situation liée</label>
+                        <select class="form-select" id="mFactureSituation">
+                            <option value="">Aucune</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelMontantFactureBtn">Annuler</button>
+                <button class="btn btn-primary" id="saveMontantFactureBtn">
+                    <i class="fa-solid fa-check"></i> Ajouter la facture
                 </button>
             </div>
         </div>

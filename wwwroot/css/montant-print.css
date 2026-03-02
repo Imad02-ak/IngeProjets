@@ -1,0 +1,129 @@
+/* montant-print.css – Styles d'impression pour les factures */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #1a1a1a;
+    background: #fff;
+    padding: 20px;
+}
+
+.facture-print-page {
+    max-width: 800px;
+    margin: 0 auto 40px;
+    padding: 40px;
+}
+
+.page-break {
+    page-break-before: always;
+}
+
+.facture-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.facture-header h2 {
+    font-size: 24px;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+}
+
+.facture-header h3 {
+    font-size: 20px;
+    color: #3b82f6;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.facture-header p {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+hr {
+    border: none;
+    border-top: 2px solid #e5e7eb;
+    margin: 16px 0;
+}
+
+.facture-meta {
+    margin-bottom: 30px;
+}
+
+.facture-meta p {
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.facture-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+}
+
+.facture-table th,
+.facture-table td {
+    padding: 12px 16px;
+    border: 1px solid #e5e7eb;
+    font-size: 14px;
+}
+
+.facture-table thead {
+    background: #f3f4f6;
+}
+
+.facture-table thead th {
+    font-weight: 600;
+    text-align: left;
+}
+
+.facture-table tfoot td {
+    border-top: 2px solid #d1d5db;
+}
+
+.facture-table tfoot tr:last-child td {
+    font-size: 16px;
+    background: #f0fdf4;
+}
+
+.facture-footer {
+    margin-top: 60px;
+    text-align: right;
+}
+
+.facture-footer p {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 12px;
+}
+
+.signature-box {
+    display: inline-block;
+    width: 250px;
+    height: 80px;
+    border: 1px dashed #d1d5db;
+    border-radius: 4px;
+}
+
+@media print {
+    body {
+        padding: 0;
+    }
+
+    .facture-print-page {
+        padding: 20px;
+        margin: 0;
+    }
+
+    .page-break {
+        page-break-before: always;
+    }
+}

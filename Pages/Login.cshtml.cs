@@ -52,6 +52,12 @@ namespace IngeProjets.Pages
                 return Page();
             }
 
+            if (!user.EstApprouve)
+            {
+                ErrorMessage = "Votre inscription est en attente d'approbation par le gérant.";
+                return Page();
+            }
+
             var result = await _signInManager.PasswordSignInAsync(
                 user, Password, isPersistent: false, lockoutOnFailure: true);
 

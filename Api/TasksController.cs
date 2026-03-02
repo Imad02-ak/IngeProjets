@@ -33,7 +33,9 @@ public class TasksController : ControllerBase
             t.AssigneAId,
             t.Phase,
             t.Commentaire,
-            t.DependanceId);
+            t.DependanceId,
+            t.MontantPrevu,
+            t.MontantRealise);
 
     private readonly ApplicationDbContext _context;
     private readonly ProjetProgressionService _progressionService;
@@ -100,6 +102,8 @@ public class TasksController : ControllerBase
             Phase = request.Phase,
             Commentaire = request.Commentaire,
             DependanceId = request.DependanceId,
+            MontantPrevu = request.MontantPrevu,
+            MontantRealise = request.MontantRealise,
             DateCreation = DateTime.UtcNow
         };
 
@@ -140,6 +144,8 @@ public class TasksController : ControllerBase
         tache.Phase = request.Phase;
         tache.Commentaire = request.Commentaire;
         tache.DependanceId = request.DependanceId;
+        tache.MontantPrevu = request.MontantPrevu;
+        tache.MontantRealise = request.MontantRealise;
 
         if (statut == StatutTache.Terminee && tache.DateFinReelle is null)
         {
@@ -265,14 +271,15 @@ public class TasksController : ControllerBase
                 var startDate = t.DateDebut ?? t.DateEcheance.AddDays(-7);
                 var taskDuration = Math.Max(1, (int)(t.DateEcheance - startDate).TotalDays);
                 var isOverdue = t.Statut != StatutTache.Terminee && t.DateEcheance.Date < now;
-                var statusColor = t.Statut switch
-                {
-                    StatutTache.Terminee => "#3b82f6",
-                    StatutTache.EnCours when !isOverdue => "#10b981",
-                    StatutTache.AFaire when !isOverdue => "#f59e0b",
-                    _ when isOverdue => "#e50908",
-                    _ => "#f59e0b"
-                };
+                var statusColor = isOverdue
+                    ? "#e50908"
+                    : t.Statut switch
+                    {
+                        StatutTache.Terminee => "#10b981",
+                        StatutTache.EnCours => "#1a1a2e",
+                        StatutTache.EnRevue => "#f59e0b",
+                        _ => "#f1d00e"
+                    };
 
                 data.Add(new
                 {

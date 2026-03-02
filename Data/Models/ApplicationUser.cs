@@ -24,6 +24,13 @@ public class ApplicationUser : IdentityUser
     [Display(Name = "Actif")]
     public bool EstActif { get; set; } = true;
 
+    [Display(Name = "Approuvé")]
+    public bool EstApprouve { get; set; }
+
+    [StringLength(200)]
+    [Display(Name = "Poste")]
+    public string? Poste { get; set; }
+
     // Navigation
     public ICollection<Projet> ProjetsGeres { get; set; } = [];
     public ICollection<Tache> TachesAssignees { get; set; } = [];

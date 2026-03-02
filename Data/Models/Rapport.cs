@@ -22,6 +22,9 @@ public class Rapport
     [Display(Name = "Contenu")]
     public string? Contenu { get; set; }
 
+    [Display(Name = "Données du formulaire")]
+    public string? DonneesFormulaire { get; set; }
+
     [Display(Name = "Date de génération")]
     public DateTime DateGeneration { get; set; } = DateTime.UtcNow;
 
@@ -48,23 +51,23 @@ public class Rapport
 
 public enum TypeRapport
 {
-    [Display(Name = "Performance")]
-    Performance,
-
-    [Display(Name = "Financier")]
-    Financier,
-
-    [Display(Name = "Avancement")]
-    Avancement,
-
-    [Display(Name = "Ressources")]
-    Ressources,
-
-    [Display(Name = "Qualité")]
+    [Display(Name = "Contrôle Qualité")]
     Qualite,
 
     [Display(Name = "Personnalisé")]
-    Personnalise
+    Personnalise,
+
+    [Display(Name = "Bordereau")]
+    Bordereau,
+
+    [Display(Name = "Courrier")]
+    Courrier,
+
+    [Display(Name = "Réception Provisoire")]
+    ReceptionProvisoire,
+
+    [Display(Name = "Réception Définitive")]
+    ReceptionDefinitive
 }
 
 public enum StatutRapport

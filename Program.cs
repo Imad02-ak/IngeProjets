@@ -80,6 +80,7 @@ builder.Services.AddRazorPages(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<ProjetProgressionService>();
+builder.Services.AddScoped<ProjectMontantService>();
 
 var app = builder.Build();
 
