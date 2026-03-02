@@ -40,7 +40,7 @@ public class DocumentsController : ControllerBase
             return NotFound();
 
         var documents = await _context.Documents
-            .Where(d => d.ProjetId == projetId)
+            .Where(d => d.ProjetId == projetId && !d.EstArchive)
             .OrderByDescending(d => d.DateAjout)
             .Select(d => new
             {
@@ -139,6 +139,50 @@ public class DocumentsController : ControllerBase
 
         var contentType = doc.ContentType ?? "application/octet-stream";
         return PhysicalFile(filePath, contentType, doc.NomOriginal);
+    }
+
+    /// <summary>
+    /// Archives a project document.
+    /// </summary>
+    [HttpPost("{docId}/archive")]
+    public async Task<IActionResult> Archive(int projetId, int docId, CancellationToken cancellationToken)
+    {
+        var doc = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjetId == projetId, cancellationToken);
+
+        if (doc is null)
+            return NotFound();
+
+        if (doc.EstArchive)
+            return BadRequest("Ce document est déjà archivé.");
+
+        doc.EstArchive = true;
+        doc.DateArchivage = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { doc.Id, doc.NomOriginal });
+    }
+
+    /// <summary>
+    /// Restores an archived document.
+    /// </summary>
+    [HttpPost("{docId}/restore")]
+    public async Task<IActionResult> Restore(int projetId, int docId, CancellationToken cancellationToken)
+    {
+        var doc = await _context.Documents
+            .FirstOrDefaultAsync(d => d.Id == docId && d.ProjetId == projetId, cancellationToken);
+
+        if (doc is null)
+            return NotFound();
+
+        if (!doc.EstArchive)
+            return BadRequest("Ce document n'est pas archivé.");
+
+        doc.EstArchive = false;
+        doc.DateArchivage = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { doc.Id, doc.NomOriginal });
     }
 
     /// <summary>

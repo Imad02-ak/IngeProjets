@@ -236,75 +236,158 @@ document.addEventListener("DOMContentLoaded", () => {
     // ===========================
     async function renderDashboard() {
         const data = await api("/api/dashboard");
+        if (!data) return;
 
+        // --- KPIs ---
+        const dashKpis = document.querySelectorAll("#page-dashboard .kpi-card");
+        if (dashKpis.length >= 4 && data.kpis) {
+            const k = data.kpis;
+            // Chantiers Actifs
+            dashKpis[0].querySelector(".kpi-value").textContent = k.chantiersActifs;
+            dashKpis[0].querySelector(".kpi-change").textContent = k.nouveauxCeMois > 0 ? `+${k.nouveauxCeMois} ce mois` : "Aucun nouveau";
+            dashKpis[0].querySelector(".kpi-change").className = `kpi-change ${k.nouveauxCeMois > 0 ? 'kpi-change--positive' : 'kpi-change--neutral'}`;
+
+            // Projets Terminés
+            dashKpis[1].querySelector(".kpi-value").textContent = k.projetsTermines;
+            dashKpis[1].querySelector(".kpi-change").textContent = k.projetsTermines > 0 ? `${k.projetsTermines} terminé(s)` : "Aucun terminé";
+            dashKpis[1].querySelector(".kpi-change").className = `kpi-change ${k.projetsTermines > 0 ? 'kpi-change--positive' : 'kpi-change--neutral'}`;
+
+            // Alertes (En Retard)
+            dashKpis[2].querySelector(".kpi-value").textContent = k.alertes;
+            dashKpis[2].querySelector(".kpi-change").textContent = k.alertes > 0 ? `${k.alertes} en retard` : "Aucune alerte";
+            dashKpis[2].querySelector(".kpi-change").className = `kpi-change ${k.alertes > 0 ? 'kpi-change--negative' : 'kpi-change--positive'}`;
+
+            // Montant Total (replace Budget Total)
+            dashKpis[3].querySelector(".kpi-value").textContent = formatAppCurrency(k.montantTotal);
+            dashKpis[3].querySelector(".kpi-change").textContent = `${k.budgetUtilise}% utilisé`;
+            dashKpis[3].querySelector(".kpi-change").className = `kpi-change ${k.budgetUtilise > 90 ? 'kpi-change--negative' : k.budgetUtilise > 70 ? 'kpi-change--warning' : 'kpi-change--neutral'}`;
+        }
+
+        // --- Chantiers Récents ---
         const recentProjectsEl = $("recentProjects");
-        if (recentProjectsEl && data?.projetsRecents) {
-            recentProjectsEl.innerHTML = data.projetsRecents.map(p => `
-        <div class="project-item">
-          <div class="project-info">
-            <div class="project-name">${p.nom}</div>
-            <div class="project-meta">
-              <i class="fa-solid fa-map-marker-alt"></i> ${p.localisation || "Non défini"}
-            </div>
-          </div>
-          <span class="project-status status--${statusCssMap[p.statut] || "info"}">
-            ${statusLabels[p.statut] || p.statut}
-          </span>
-        </div>
-      `).join("");
+        if (recentProjectsEl && data.projetsRecents) {
+            if (data.projetsRecents.length === 0) {
+                recentProjectsEl.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;"><p style="color:var(--text-tertiary)">Aucun chantier récent</p></div>';
+            } else {
+                recentProjectsEl.innerHTML = data.projetsRecents.map(p => {
+                    const ti = typeIconMap[p.type] || "folder";
+                    return `
+                    <div class="project-item" style="cursor:pointer" data-nav-project="${p.id}">
+                      <div class="project-info">
+                        <div class="project-name"><i class="fa-solid fa-${ti}" style="margin-right:6px;opacity:.6"></i>${esc(p.nom)}</div>
+                        <div class="project-meta">
+                          <span><i class="fa-solid fa-map-marker-alt"></i> ${esc(p.localisation || 'Non défini')}</span>
+                          <span style="margin-left:10px"><i class="fa-solid fa-chart-line"></i> ${p.avancement}%</span>
+                          ${p.chefProjet ? `<span style="margin-left:10px"><i class="fa-solid fa-user"></i> ${esc(p.chefProjet)}</span>` : ''}
+                        </div>
+                      </div>
+                      <span class="project-status status--${statusCssMap[p.statut] || 'info'}">
+                        ${statusLabels[p.statut] || p.statut}
+                      </span>
+                    </div>`;
+                }).join("");
+            }
         }
 
+        // --- Activité Récente ---
+        const activityEl = $("activityTimeline");
+        if (activityEl && data.activites) {
+            if (data.activites.length === 0) {
+                activityEl.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;"><p style="color:var(--text-tertiary)">Aucune activité récente</p></div>';
+            } else {
+                activityEl.innerHTML = data.activites.map(a => {
+                    const timeAgo = getTimeAgo(a.date);
+                    const hasNav = a.entityType && a.entityId;
+                    return `
+                    <div class="activity-item${hasNav ? ' activity-item--clickable' : ''}" ${hasNav ? `data-activity-type="${a.entityType}" data-activity-id="${a.entityId}"` : ''} style="${hasNav ? 'cursor:pointer' : ''}">
+                      <div class="activity-icon activity-icon--${a.couleur}">
+                        <i class="fa-solid ${a.icon}"></i>
+                      </div>
+                      <div class="activity-content">
+                        <div class="activity-text">${esc(a.texte)}</div>
+                        <div class="activity-time">${timeAgo}</div>
+                      </div>
+                      ${hasNav ? '<div class="activity-arrow"><i class="fa-solid fa-chevron-right"></i></div>' : ''}
+                    </div>`;
+                }).join("");
+            }
+        }
+
+        // --- Échéances Proches ---
         const upcomingEl = $("upcomingTasks");
-        if (upcomingEl && data?.echeancesProches) {
-            upcomingEl.innerHTML = data.echeancesProches.map(t => {
-                const date = new Date(t.dateEcheance);
-                return `
-          <div class="upcoming-item">
-            <div class="upcoming-date">
-              <div class="day">${date.getDate()}</div>
-              <div class="month">${date.toLocaleDateString(appLocale(), { month: "short" })}</div>
-            </div>
-            <div class="upcoming-info">
-              <div class="upcoming-title">${t.titre}</div>
-              <div class="upcoming-project">${t.projet}</div>
-            </div>
-          </div>
-        `;
-            }).join("");
-        }
-
-        if (data?.kpis) {
-            const kpiValues = $$(".kpi-value");
-            if (kpiValues.length >= 4) {
-                kpiValues[0].textContent = data.kpis.chantiersActifs;
-                kpiValues[1].textContent = data.kpis.projetsTermines;
-                kpiValues[2].textContent = data.kpis.alertes;
-                kpiValues[3].textContent = fmtBudgetM(data.kpis.budgetTotal);
+        if (upcomingEl && data.echeancesProches) {
+            if (data.echeancesProches.length === 0) {
+                upcomingEl.innerHTML = '<div class="empty-state" style="padding:20px;text-align:center;"><p style="color:var(--text-tertiary)">Aucune échéance proche</p></div>';
+            } else {
+                upcomingEl.innerHTML = data.echeancesProches.map(t => {
+                    const date = new Date(t.dateEcheance);
+                    const pc = prioriteCssMap[t.priorite] || "medium";
+                    const daysLeft = Math.ceil((date - new Date()) / 86400000);
+                    const urgency = daysLeft <= 2 ? 'urgent' : daysLeft <= 7 ? 'soon' : 'normal';
+                    return `
+                    <div class="upcoming-item upcoming-item--${urgency}" data-upcoming-task-id="${t.id}" style="cursor:pointer">
+                      <div class="upcoming-date">
+                        <div class="day">${date.getDate()}</div>
+                        <div class="month">${date.toLocaleDateString(appLocale(), { month: "short" })}</div>
+                      </div>
+                      <div class="upcoming-info">
+                        <div class="upcoming-title">${esc(t.titre)}</div>
+                        <div class="upcoming-project">
+                          <span><i class="fa-solid fa-folder"></i> ${esc(t.projet)}</span>
+                          ${t.assigneA ? `<span style="margin-left:8px"><i class="fa-solid fa-user"></i> ${esc(t.assigneA)}</span>` : ''}
+                        </div>
+                      </div>
+                      <div class="upcoming-meta">
+                        <span class="project-card-priority priority-${pc}" style="font-size:10px;padding:1px 6px">${prioriteLabels[t.priorite] || t.priorite}</span>
+                        <span class="upcoming-days-left">${daysLeft <= 0 ? "Aujourd'hui" : daysLeft === 1 ? 'Demain' : daysLeft + 'j'}</span>
+                      </div>
+                    </div>`;
+                }).join("");
             }
         }
 
         initDashboardCharts(data);
     }
 
+    // Time-ago helper for activity feed
+    function getTimeAgo(dateStr) {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - d;
+        const diffMin = Math.floor(diffMs / 60000);
+        const diffH = Math.floor(diffMs / 3600000);
+        const diffD = Math.floor(diffMs / 86400000);
+        if (diffMin < 1) return "À l'instant";
+        if (diffMin < 60) return `Il y a ${diffMin} min`;
+        if (diffH < 24) return `Il y a ${diffH}h`;
+        if (diffD === 1) return "Hier";
+        if (diffD < 7) return `Il y a ${diffD} jours`;
+        return formatAppDate(dateStr, { day: "numeric", month: "short" });
+    }
+
     function initDashboardCharts(data) {
-        // Projects Evolution Chart
+        // Projects Evolution Chart - with real data from API
         const projectsChartEl = $("projectsChart");
         if (projectsChartEl && window.Chart) {
             const ctx = projectsChartEl.getContext("2d");
 
-            // Détruire le graphique existant si présent
             if (projectsChartEl.chartInstance) {
                 projectsChartEl.chartInstance.destroy();
             }
 
+            const evoLabels = data?.evolution ? data.evolution.map(e => e.mois) : [];
+            const evoActifs = data?.evolution ? data.evolution.map(e => e.actifs) : [];
+            const evoTermines = data?.evolution ? data.evolution.map(e => e.termines) : [];
+
             projectsChartEl.chartInstance = new Chart(ctx, {
                 type: "line",
                 data: {
-                    labels: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin"],
+                    labels: evoLabels,
                     datasets: [
                         {
                             label: "Projets actifs",
-                            data: [18, 20, 22, 21, 23, 24],
+                            data: evoActifs,
                             borderColor: "#e50908",
                             backgroundColor: "rgba(229, 9, 8, 0.1)",
                             fill: true,
@@ -312,7 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         },
                         {
                             label: "Projets terminés",
-                            data: [140, 144, 147, 150, 153, 156],
+                            data: evoTermines,
                             borderColor: "#10b981",
                             backgroundColor: "rgba(16, 185, 129, 0.1)",
                             fill: true,
@@ -327,13 +410,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         legend: { position: "bottom" },
                     },
                     scales: {
-                        y: { beginAtZero: false },
+                        y: { beginAtZero: true },
                     },
                 },
             });
         }
 
-        // Type Distribution Chart
+        // Type Distribution Chart - with real data from API
         const typeChartEl = $("typeChart");
         if (typeChartEl && window.Chart) {
             const ctx = typeChartEl.getContext("2d");
@@ -342,20 +425,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 typeChartEl.chartInstance.destroy();
             }
 
+            const typeColorMap = {
+                Route: "#e50908",
+                Pont: "#f1d00e",
+                Batiment: "#3b82f6",
+                Assainissement: "#10b981",
+                Energie: "#8b5cf6"
+            };
+
+            const chartLabels = data?.parType ? data.parType.map(t => typeLabels[t.type] || t.type) : [];
+            const chartData = data?.parType ? data.parType.map(t => t.count) : [];
+            const chartColors = data?.parType ? data.parType.map(t => typeColorMap[t.type] || "#9ca3af") : [];
+
+            // Map API type keys to filter dropdown values
+            const typeToFilter = { Route: "route", Pont: "pont", Batiment: "batiment", Assainissement: "assainissement", Energie: "energie" };
+            const typeApiKeys = data?.parType ? data.parType.map(t => t.type) : [];
+
             typeChartEl.chartInstance = new Chart(ctx, {
                 type: "doughnut",
                 data: {
-                    labels: ["Routes", "Ponts", "Bâtiments", "Assainissement", "Énergie"],
+                    labels: chartLabels,
                     datasets: [
                         {
-                            data: [8, 5, 6, 3, 2],
-                            backgroundColor: [
-                                "#e50908",
-                                "#f1d00e",
-                                "#3b82f6",
-                                "#10b981",
-                                "#8b5cf6",
-                            ],
+                            data: chartData,
+                            backgroundColor: chartColors,
                         },
                     ],
                 },
@@ -365,8 +458,23 @@ document.addEventListener("DOMContentLoaded", () => {
                     plugins: {
                         legend: { position: "bottom" },
                     },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const idx = elements[0].index;
+                            const apiType = typeApiKeys[idx];
+                            const filterVal = typeToFilter[apiType];
+                            if (filterVal) {
+                                navigateTo("projets");
+                                setTimeout(() => {
+                                    const sel = $("filterType");
+                                    if (sel) { sel.value = filterVal; sel.dispatchEvent(new Event("change")); }
+                                }, 300);
+                            }
+                        }
+                    },
                 },
             });
+            typeChartEl.style.cursor = "pointer";
         }
     }
 
@@ -1272,6 +1380,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
                 <div class="rapport-list-actions">
                     <button class="btn btn-sm btn-outline" data-view-rapport-id="${r.id}" title="Voir / Imprimer"><i class="fa-solid fa-eye"></i></button>
+                    <button class="btn btn-sm btn-outline" data-archive-rapport-id="${r.id}" title="Archiver"><i class="fa-solid fa-box-archive"></i></button>
                     <button class="btn btn-sm btn-outline btn-danger-outline" data-delete-rapport-id="${r.id}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>`;
@@ -1576,6 +1685,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (viewBtn) {
             e.stopPropagation();
             viewRapport(parseInt(viewBtn.dataset.viewRapportId));
+            return;
+        }
+
+        const archiveRapportBtn = e.target.closest("[data-archive-rapport-id]");
+        if (archiveRapportBtn) {
+            e.stopPropagation();
+            archiveRapport(parseInt(archiveRapportBtn.dataset.archiveRapportId));
             return;
         }
 
@@ -2839,6 +2955,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             </div>
                             <div class="view-task-actions">
                                 <button class="btn btn-sm btn-outline" data-edit-task-id="${t.id}" title="Modifier"><i class="fa-solid fa-pen"></i></button>
+                                <button class="btn btn-sm btn-outline" data-archive-task-id="${t.id}" title="Archiver"><i class="fa-solid fa-box-archive"></i></button>
                                 <button class="btn btn-sm btn-outline btn-danger-outline" data-delete-task-id="${t.id}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>`;
@@ -3264,11 +3381,161 @@ document.addEventListener("DOMContentLoaded", () => {
     // ===========================
     // SEARCH FUNCTIONALITY
     // ===========================
-    $("globalSearch")?.addEventListener("input", (e) => {
-        const query = e.target.value.toLowerCase();
-        if (query.length > 2) {
-            console.log("Recherche:", query);
+    let searchTimeout = null;
+    let searchResultsEl = null;
+
+    function ensureSearchDropdown() {
+        if (searchResultsEl) return searchResultsEl;
+        searchResultsEl = document.createElement("div");
+        searchResultsEl.className = "global-search-results";
+        searchResultsEl.id = "globalSearchResults";
+        const searchContainer = document.querySelector(".global-search");
+        if (searchContainer) {
+            searchContainer.style.position = "relative";
+            searchContainer.appendChild(searchResultsEl);
         }
+        return searchResultsEl;
+    }
+
+    function closeSearchResults() {
+        if (searchResultsEl) {
+            searchResultsEl.innerHTML = "";
+            searchResultsEl.classList.remove("active");
+        }
+    }
+
+    $("globalSearch")?.addEventListener("input", (e) => {
+        const query = e.target.value.trim();
+        if (searchTimeout) clearTimeout(searchTimeout);
+        if (query.length < 1) { closeSearchResults(); return; }
+
+        searchTimeout = setTimeout(async () => {
+            const results = await api(`/api/dashboard/search?q=${encodeURIComponent(query)}`);
+            if (!results) { closeSearchResults(); return; }
+
+            const dropdown = ensureSearchDropdown();
+            let html = "";
+
+            const hasResults = (results.projets?.length || 0) + (results.taches?.length || 0) + (results.utilisateurs?.length || 0);
+
+            if (!hasResults) {
+                html = '<div class="search-empty"><i class="fa-solid fa-search"></i> Aucun résultat pour "' + esc(query) + '"</div>';
+            } else {
+                if (results.projets?.length > 0) {
+                    html += '<div class="search-group-title"><i class="fa-solid fa-folder-open"></i> Projets</div>';
+                    results.projets.forEach(p => {
+                        const ti = typeIconMap[p.type] || "folder";
+                        html += `<a href="#" class="search-result-item" data-search-action="project" data-search-id="${p.id}">
+                            <div class="search-result-icon"><i class="fa-solid fa-${ti}"></i></div>
+                            <div class="search-result-info">
+                                <span class="search-result-name">${esc(p.nom)}</span>
+                                <span class="search-result-meta">${p.code ? esc(p.code) + ' · ' : ''}${esc(statusLabels[p.statut] || p.statut)}</span>
+                            </div>
+                        </a>`;
+                    });
+                }
+                if (results.taches?.length > 0) {
+                    html += '<div class="search-group-title"><i class="fa-solid fa-list-check"></i> Tâches</div>';
+                    results.taches.forEach(t => {
+                        html += `<a href="#" class="search-result-item" data-search-action="task" data-search-id="${t.id}">
+                            <div class="search-result-icon"><i class="fa-solid fa-tasks"></i></div>
+                            <div class="search-result-info">
+                                <span class="search-result-name">${esc(t.nom)}</span>
+                                <span class="search-result-meta">${esc(t.projet)}</span>
+                            </div>
+                        </a>`;
+                    });
+                }
+                if (results.utilisateurs?.length > 0) {
+                    html += '<div class="search-group-title"><i class="fa-solid fa-users"></i> Utilisateurs</div>';
+                    results.utilisateurs.forEach(u => {
+                        html += `<a href="#" class="search-result-item" data-search-action="user" data-search-id="${u.id}">
+                            <div class="search-result-icon"><i class="fa-solid fa-user"></i></div>
+                            <div class="search-result-info">
+                                <span class="search-result-name">${esc(u.nom)}</span>
+                                <span class="search-result-meta">${esc(u.email)}</span>
+                            </div>
+                        </a>`;
+                    });
+                }
+            }
+
+            dropdown.innerHTML = html;
+            dropdown.classList.add("active");
+        }, 300);
+    });
+
+    // Handle search result clicks
+    document.addEventListener("click", (e) => {
+        const item = e.target.closest(".search-result-item");
+        if (item) {
+            e.preventDefault();
+            const action = item.dataset.searchAction;
+            const id = item.dataset.searchId;
+            closeSearchResults();
+            $("globalSearch").value = "";
+
+            if (action === "project") {
+                navigateTo("projets");
+                setTimeout(() => openProjectView(parseInt(id)), 300);
+            } else if (action === "task") {
+                navigateTo("planning");
+                setTimeout(() => openTaskEdit(parseInt(id)), 300);
+            } else if (action === "user") {
+                navigateTo("utilisateurs");
+            }
+            return;
+        }
+
+        // Click on recent project item in dashboard
+        const navProject = e.target.closest("[data-nav-project]");
+        if (navProject) {
+            e.preventDefault();
+            const pId = parseInt(navProject.dataset.navProject);
+            navigateTo("projets");
+            setTimeout(() => openProjectView(pId), 300);
+            return;
+        }
+
+        // Click on activity item in dashboard
+        const actItem = e.target.closest("[data-activity-type]");
+        if (actItem) {
+            e.preventDefault();
+            const entityType = actItem.dataset.activityType;
+            const entityId = parseInt(actItem.dataset.activityId);
+            if (entityType === "projet" && entityId) {
+                navigateTo("projets");
+                setTimeout(() => openProjectView(entityId), 300);
+            } else if (entityType === "tache" && entityId) {
+                navigateTo("planning");
+                setTimeout(() => openTaskEdit(entityId), 300);
+            } else if (entityType === "rapport" && entityId) {
+                navigateTo("projets");
+                setTimeout(() => openProjectView(entityId), 300);
+            }
+            return;
+        }
+
+        // Click on upcoming task item in dashboard
+        const upcomingItem = e.target.closest("[data-upcoming-task-id]");
+        if (upcomingItem) {
+            e.preventDefault();
+            const taskId = parseInt(upcomingItem.dataset.upcomingTaskId);
+            if (taskId) {
+                navigateTo("planning");
+                setTimeout(() => openTaskEdit(taskId), 300);
+            }
+            return;
+        }
+
+        // Close search results on outside click
+        if (!e.target.closest(".global-search")) {
+            closeSearchResults();
+        }
+    });
+
+    $("globalSearch")?.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") { closeSearchResults(); $("globalSearch").value = ""; }
     });
 
     // ===========================
@@ -3735,6 +4002,12 @@ document.addEventListener("DOMContentLoaded", () => {
             openTaskEdit(parseInt(editBtn.dataset.editTaskId));
             return;
         }
+        const archiveTaskBtn = e.target.closest("[data-archive-task-id]");
+        if (archiveTaskBtn) {
+            e.stopPropagation();
+            archiveTask(parseInt(archiveTaskBtn.dataset.archiveTaskId));
+            return;
+        }
         const deleteBtn = e.target.closest("[data-delete-task-id]");
         if (deleteBtn) {
             e.stopPropagation();
@@ -3835,6 +4108,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
                 <div class="view-document-actions">
                     <a href="/api/projects/${projetId}/documents/${d.id}" class="btn btn-sm btn-outline" title="Télécharger" target="_blank"><i class="fa-solid fa-download"></i></a>
+                    <button class="btn btn-sm btn-outline" data-archive-doc-id="${d.id}" data-archive-doc-projet="${projetId}" title="Archiver"><i class="fa-solid fa-box-archive"></i></button>
                     <button class="btn btn-sm btn-outline btn-danger-outline" data-delete-doc-id="${d.id}" data-delete-doc-name="${esc(d.nomOriginal)}" data-delete-doc-projet="${projetId}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>`;
@@ -3852,6 +4126,15 @@ document.addEventListener("DOMContentLoaded", () => {
             $("fileDropZone").style.display = "";
             $("saveUploadDocBtn").disabled = true;
             uploadDocModal?.classList.add("active");
+            return;
+        }
+
+        const archiveDocBtn = e.target.closest("[data-archive-doc-id]");
+        if (archiveDocBtn) {
+            e.stopPropagation();
+            const docId = parseInt(archiveDocBtn.dataset.archiveDocId);
+            const projetId = parseInt(archiveDocBtn.dataset.archiveDocProjet);
+            archiveDocument(projetId, docId);
             return;
         }
 
@@ -4016,6 +4299,47 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function archiveRapport(rapportId) {
+        const result = await api(`/api/rapports/${rapportId}/archive`, { method: "POST" });
+        if (result) {
+            showToast("success", "Rapport archivé", "Le rapport a été déplacé dans les archives");
+            cachedRapports = [];
+            await renderReports();
+        } else {
+            showToast("error", "Erreur", "Impossible d'archiver le rapport.");
+        }
+    }
+
+    async function restoreRapport(rapportId) {
+        const result = await api(`/api/rapports/${rapportId}/restore`, { method: "POST" });
+        if (result) {
+            showToast("success", "Rapport restauré", "Le rapport a été restauré avec succès");
+            await renderArchives();
+        } else {
+            showToast("error", "Erreur", "Impossible de restaurer le rapport.");
+        }
+    }
+
+    async function archiveDocument(projetId, docId) {
+        const result = await api(`/api/projects/${projetId}/documents/${docId}/archive`, { method: "POST" });
+        if (result) {
+            showToast("success", "Document archivé", "Le document a été déplacé dans les archives");
+            loadDocuments(projetId);
+        } else {
+            showToast("error", "Erreur", "Impossible d'archiver le document.");
+        }
+    }
+
+    async function restoreDocument(projetId, docId) {
+        const result = await api(`/api/projects/${projetId}/documents/${docId}/restore`, { method: "POST" });
+        if (result) {
+            showToast("success", "Document restauré", "Le document a été restauré avec succès");
+            await renderArchives();
+        } else {
+            showToast("error", "Erreur", "Impossible de restaurer le document.");
+        }
+    }
+
     // Archive tabs
     document.addEventListener("click", (e) => {
         const archiveTab = e.target.closest("[data-archive-tab]");
@@ -4025,10 +4349,16 @@ document.addEventListener("DOMContentLoaded", () => {
             archiveTab.classList.add("active");
 
             const tab = archiveTab.dataset.archiveTab;
-            $("archiveProjectsPanel")?.classList.toggle("active", tab === "projects");
-            $("archiveProjectsPanel")?.classList.toggle("hidden", tab !== "projects");
-            $("archiveTasksPanel")?.classList.toggle("active", tab === "tasks");
-            $("archiveTasksPanel")?.classList.toggle("hidden", tab !== "tasks");
+            $$("#page-archives .users-panel").forEach(p => {
+                p.classList.add("hidden");
+                p.classList.remove("active");
+            });
+            const panelMap = { projects: "archiveProjectsPanel", tasks: "archiveTasksPanel", rapports: "archiveRapportsPanel", documents: "archiveDocumentsPanel" };
+            const panel = $(panelMap[tab]);
+            if (panel) {
+                panel.classList.remove("hidden");
+                panel.classList.add("active");
+            }
         }
 
         // Restore project button
@@ -4046,6 +4376,22 @@ document.addEventListener("DOMContentLoaded", () => {
             restoreTask(parseInt(restoreTaskBtn.dataset.restoreTaskId));
             return;
         }
+
+        // Restore rapport button
+        const restoreRapportBtn = e.target.closest("[data-restore-rapport-id]");
+        if (restoreRapportBtn) {
+            e.stopPropagation();
+            restoreRapport(parseInt(restoreRapportBtn.dataset.restoreRapportId));
+            return;
+        }
+
+        // Restore document button
+        const restoreDocBtn = e.target.closest("[data-restore-doc-id]");
+        if (restoreDocBtn) {
+            e.stopPropagation();
+            restoreDocument(parseInt(restoreDocBtn.dataset.restoreDocProjet), parseInt(restoreDocBtn.dataset.restoreDocId));
+            return;
+        }
     });
 
     // Archive search
@@ -4057,13 +4403,21 @@ document.addEventListener("DOMContentLoaded", () => {
         $$("#archiveTasksBody tr").forEach(row => {
             row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
         });
+        $$("#archiveRapportsBody tr").forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        });
+        $$("#archiveDocumentsBody tr").forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        });
     });
 
     async function renderArchives() {
-        const [stats, projects, tasks] = await Promise.all([
+        const [stats, projects, tasks, rapports, documents] = await Promise.all([
             api("/api/archives/stats"),
             api("/api/archives/projects"),
             api("/api/archives/tasks"),
+            api("/api/archives/rapports"),
+            api("/api/archives/documents"),
         ]);
 
         // Stats
@@ -4071,6 +4425,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
             el("archiveProjetsCount", stats.projetsArchives);
             el("archiveTachesCount", stats.tachesArchivees);
+            el("archiveRapportsCount", stats.rapportsArchives);
+            el("archiveDocumentsCount", stats.documentsArchives);
             el("archiveBudgetTotal", stats.budgetArchive > 0
                 ? fmtBudgetM(stats.budgetArchive)
                 : formatAppCurrency(0));
@@ -4139,6 +4495,74 @@ document.addEventListener("DOMContentLoaded", () => {
                                     ? `<button class="btn btn-sm btn-primary" data-restore-task-id="${t.id}" title="Restaurer"><i class="fa-solid fa-rotate-left"></i> Restaurer</button>`
                                     : `<span style="color:var(--text-tertiary);font-size:var(--font-sm)">Restaurer le projet d'abord</span>`
                                 }
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join("");
+            }
+        }
+
+        // Archived rapports table
+        const rapportBody = $("archiveRapportsBody");
+        if (rapportBody && rapports) {
+            if (rapports.length === 0) {
+                rapportBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary);"><i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>Aucun rapport archivé</td></tr>';
+            } else {
+                const rapportTypeLabels = { Qualite: "Contrôle Qualité", Personnalise: "Personnalisé", Bordereau: "Bordereau", Courrier: "Courrier", ReceptionProvisoire: "Réception Provisoire", ReceptionDefinitive: "Réception Définitive" };
+                rapportBody.innerHTML = rapports.map(r => {
+                    const archiveDate = r.dateArchivage
+                        ? formatAppDate(r.dateArchivage, { day: "numeric", month: "short", year: "numeric" })
+                        : "—";
+                    const genDate = r.dateGeneration
+                        ? formatAppDate(r.dateGeneration, { day: "numeric", month: "short", year: "numeric" })
+                        : "—";
+                    return `<tr>
+                        <td><strong>${esc(r.titre)}</strong></td>
+                        <td>${esc(rapportTypeLabels[r.type] || r.type)}</td>
+                        <td>${esc(r.projet || "—")}</td>
+                        <td>${esc(r.generePar || "—")}</td>
+                        <td>${genDate}</td>
+                        <td>${archiveDate}</td>
+                        <td>
+                            <div class="table-actions-group">
+                                <button class="btn btn-sm btn-primary" data-restore-rapport-id="${r.id}" title="Restaurer">
+                                    <i class="fa-solid fa-rotate-left"></i> Restaurer
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join("");
+            }
+        }
+
+        // Archived documents table
+        const docBody = $("archiveDocumentsBody");
+        if (docBody && documents) {
+            if (documents.length === 0) {
+                docBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-tertiary);"><i class="fa-solid fa-box-open" style="font-size:28px;display:block;margin-bottom:8px;"></i>Aucun document archivé</td></tr>';
+            } else {
+                const fmtSize = (bytes) => {
+                    if (bytes < 1024) return bytes + " o";
+                    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " Ko";
+                    return (bytes / 1048576).toFixed(1) + " Mo";
+                };
+                docBody.innerHTML = documents.map(d => {
+                    const archiveDate = d.dateArchivage
+                        ? formatAppDate(d.dateArchivage, { day: "numeric", month: "short", year: "numeric" })
+                        : "—";
+                    const ext = (d.nomOriginal || "").split(".").pop()?.toUpperCase() || "—";
+                    return `<tr>
+                        <td><strong><i class="fa-solid fa-file"></i> ${esc(d.nomOriginal)}</strong></td>
+                        <td>${esc(d.projet || "—")}</td>
+                        <td>${ext}</td>
+                        <td>${fmtSize(d.tailleFichier || 0)}</td>
+                        <td>${esc(d.ajoutePar || "—")}</td>
+                        <td>${archiveDate}</td>
+                        <td>
+                            <div class="table-actions-group">
+                                <button class="btn btn-sm btn-primary" data-restore-doc-id="${d.id}" data-restore-doc-projet="${d.projetId}" title="Restaurer">
+                                    <i class="fa-solid fa-rotate-left"></i> Restaurer
+                                </button>
                             </div>
                         </td>
                     </tr>`;

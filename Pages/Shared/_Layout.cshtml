@@ -288,8 +288,8 @@
                             </div>
                             <div class="kpi-content">
                                 <h3 class="kpi-label">Chantiers Actifs</h3>
-                                <p class="kpi-value">24</p>
-                                <span class="kpi-change kpi-change--positive">+3 ce mois</span>
+                                <p class="kpi-value">—</p>
+                                <span class="kpi-change kpi-change--neutral">Chargement...</span>
                             </div>
                         </div>
 
@@ -299,8 +299,8 @@
                             </div>
                             <div class="kpi-content">
                                 <h3 class="kpi-label">Projets Terminés</h3>
-                                <p class="kpi-value">156</p>
-                                <span class="kpi-change kpi-change--positive">+12% vs 2025</span>
+                                <p class="kpi-value">—</p>
+                                <span class="kpi-change kpi-change--neutral">Chargement...</span>
                             </div>
                         </div>
 
@@ -310,8 +310,8 @@
                             </div>
                             <div class="kpi-content">
                                 <h3 class="kpi-label">Alertes</h3>
-                                <p class="kpi-value">7</p>
-                                <span class="kpi-change kpi-change--negative">+2 aujourd'hui</span>
+                                <p class="kpi-value">—</p>
+                                <span class="kpi-change kpi-change--neutral">Chargement...</span>
                             </div>
                         </div>
 
@@ -320,9 +320,9 @@
                                 <i class="fa-solid fa-coins"></i>
                             </div>
                             <div class="kpi-content">
-                                <h3 class="kpi-label">Budget Total</h3>
-                                <p class="kpi-value">45.2M €</p>
-                                <span class="kpi-change kpi-change--neutral">78% utilisé</span>
+                                <h3 class="kpi-label">Montant Total</h3>
+                                <p class="kpi-value">0 DA</p>
+                                <span class="kpi-change kpi-change--neutral">0% utilisé</span>
                             </div>
                         </div>
                     </div>
@@ -1227,10 +1227,24 @@
                                 <span class="quick-stat-label">Tâches archivées</span>
                             </div>
                         </div>
+                        <div class="quick-stat quick-stat--success">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-file-lines"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="archiveRapportsCount">0</span>
+                                <span class="quick-stat-label">Rapports archivés</span>
+                            </div>
+                        </div>
                         <div class="quick-stat quick-stat--warning">
+                            <div class="quick-stat-icon"><i class="fa-solid fa-file-zipper"></i></div>
+                            <div class="quick-stat-content">
+                                <span class="quick-stat-value" id="archiveDocumentsCount">0</span>
+                                <span class="quick-stat-label">Documents archivés</span>
+                            </div>
+                        </div>
+                        <div class="quick-stat">
                             <div class="quick-stat-icon"><i class="fa-solid fa-coins"></i></div>
                             <div class="quick-stat-content">
-                                <span class="quick-stat-value" id="archiveBudgetTotal">0 €</span>
+                                <span class="quick-stat-value" id="archiveBudgetTotal">0 DA</span>
                                 <span class="quick-stat-label">Budget archivé</span>
                             </div>
                         </div>
@@ -1239,10 +1253,16 @@
                     <!-- Onglets Archives -->
                     <div class="users-tabs">
                         <button class="users-tab active" data-archive-tab="projects">
-                            <i class="fa-solid fa-folder-open"></i> Projets archivés
+                            <i class="fa-solid fa-folder-open"></i> Projets
                         </button>
                         <button class="users-tab" data-archive-tab="tasks">
-                            <i class="fa-solid fa-list-check"></i> Tâches archivées
+                            <i class="fa-solid fa-list-check"></i> Tâches
+                        </button>
+                        <button class="users-tab" data-archive-tab="rapports">
+                            <i class="fa-solid fa-file-lines"></i> Rapports
+                        </button>
+                        <button class="users-tab" data-archive-tab="documents">
+                            <i class="fa-solid fa-file-zipper"></i> Documents
                         </button>
                     </div>
 
@@ -1290,6 +1310,50 @@
                                     </tr>
                                 </thead>
                                 <tbody id="archiveTasksBody">
+                                    <!-- Rempli par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Rapports archivés -->
+                    <div class="users-panel hidden" id="archiveRapportsPanel">
+                        <div class="projects-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rapport</th>
+                                        <th>Type</th>
+                                        <th>Projet</th>
+                                        <th>Généré par</th>
+                                        <th>Date de génération</th>
+                                        <th>Date d'archivage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="archiveRapportsBody">
+                                    <!-- Rempli par JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Documents archivés -->
+                    <div class="users-panel hidden" id="archiveDocumentsPanel">
+                        <div class="projects-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Projet</th>
+                                        <th>Type</th>
+                                        <th>Taille</th>
+                                        <th>Ajouté par</th>
+                                        <th>Date d'archivage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="archiveDocumentsBody">
                                     <!-- Rempli par JS -->
                                 </tbody>
                             </table>

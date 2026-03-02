@@ -6712,3 +6712,208 @@ body[data-theme="dark"] {
 [data-density="comfortable"] .kpi-grid {
     gap: 20px;
 }
+
+/* ==========================================
+   GLOBAL SEARCH DROPDOWN
+   ========================================== */
+.global-search {
+    position: relative;
+}
+
+.global-search-results {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    min-width: 340px;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-color);
+    z-index: 1000;
+    max-height: 420px;
+    overflow-y: auto;
+    padding: var(--space-xs) 0;
+}
+
+.global-search-results.active {
+    display: block;
+}
+
+.search-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    padding: var(--space-sm) var(--space-md) var(--space-xs);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: background 150ms;
+    cursor: pointer;
+}
+
+.search-result-item:hover {
+    background: var(--color-beige);
+}
+
+.search-result-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: rgba(229, 9, 8, 0.08);
+    color: var(--color-red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.search-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-result-name {
+    display: block;
+    font-size: var(--font-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-meta {
+    display: block;
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.search-empty {
+    padding: var(--space-lg);
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: var(--font-sm);
+}
+
+/* ==========================================
+   ACTIVITY ICON COLOR VARIANTS
+   ========================================== */
+.activity-icon--primary {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--color-info);
+}
+
+.activity-icon--success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success);
+}
+
+.activity-icon--warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning);
+}
+
+.activity-icon--info {
+    background: rgba(139, 92, 246, 0.1);
+    color: #8b5cf6;
+}
+
+.activity-icon--danger {
+    background: rgba(229, 9, 8, 0.1);
+    color: var(--color-red);
+}
+
+.activity-item--clickable {
+    cursor: pointer;
+    transition: background 150ms, transform 100ms;
+}
+
+.activity-item--clickable:hover {
+    background: var(--color-beige);
+    transform: translateX(2px);
+}
+
+.activity-arrow {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    opacity: 0;
+    transition: opacity 150ms;
+}
+
+.activity-item--clickable:hover .activity-arrow {
+    opacity: 1;
+}
+
+/* ==========================================
+   UPCOMING ITEMS ENHANCEMENTS
+   ========================================== */
+.upcoming-item {
+    display: flex;
+    align-items: center;
+    transition: background 150ms, transform 100ms;
+}
+
+.upcoming-item[data-upcoming-task-id]:hover {
+    background: var(--color-beige);
+    transform: translateX(2px);
+}
+
+.upcoming-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.upcoming-days-left {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.upcoming-item--urgent .upcoming-days-left {
+    color: var(--color-red);
+}
+
+.upcoming-item--soon .upcoming-days-left {
+    color: var(--color-warning);
+}
+
+.upcoming-item--urgent {
+    border-left: 3px solid var(--color-red);
+    padding-left: var(--space-sm);
+}
+
+.upcoming-item--soon {
+    border-left: 3px solid var(--color-warning);
+    padding-left: var(--space-sm);
+}
+
+/* ==========================================
+   DARK THEME: SEARCH & ACTIVITY
+   ========================================== */
+[data-theme="dark"] .global-search-results {
+    background: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .search-result-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .search-result-icon {
+    background: rgba(229, 9, 8, 0.15);
+}

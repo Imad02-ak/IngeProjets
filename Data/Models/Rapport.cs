@@ -35,6 +35,13 @@ public class Rapport
     [Display(Name = "Prochaine génération")]
     public DateTime? ProchaineGeneration { get; set; }
 
+    [Display(Name = "Archivé")]
+    public bool EstArchive { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Date d'archivage")]
+    public DateTime? DateArchivage { get; set; }
+
     // Navigation
     [Display(Name = "Projet")]
     public int? ProjetId { get; set; }

@@ -22,6 +22,13 @@ public class DocumentProjet
 
     public DateTime DateAjout { get; set; } = DateTime.UtcNow;
 
+    [Display(Name = "Archiv\u00e9")]
+    public bool EstArchive { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Date d'archivage")]
+    public DateTime? DateArchivage { get; set; }
+
     public string? AjouteParId { get; set; }
 
     [ForeignKey(nameof(AjouteParId))]

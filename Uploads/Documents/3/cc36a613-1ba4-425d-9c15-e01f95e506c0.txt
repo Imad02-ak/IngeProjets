@@ -1,0 +1,7 @@
+devis/ les taches/ montant des situation (la somme dyalhom c'est montant du marché) /avenant /les facteurs (elaborer, signéer ) / cirlce de pourcentage de projet par rapport montant 
+
+
+
+
+développer la page de tableau de bord relier les kpi avec les projets existants et leurs informations 
+ développer la répartition par type et l'évolution des projets , les chantiers récents et et les activités récent et les échéances proches changer aussi la carte de budget totale par le montant et relier les données développer aussi la barre de recherche qui existe dans le navbar pout être fonctionnelles

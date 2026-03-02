@@ -32,6 +32,7 @@ public class RapportsController : ControllerBase
         var rapports = await _context.Rapports
             .Include(r => r.Projet)
             .Include(r => r.GenerePar)
+            .Where(r => !r.EstArchive)
             .OrderByDescending(r => r.DateGeneration)
             .Select(r => new
             {
@@ -123,6 +124,46 @@ public class RapportsController : ControllerBase
             rapport.ProjetId,
             GenerePar = user?.NomComplet
         });
+    }
+
+    /// <summary>
+    /// Archives a rapport.
+    /// </summary>
+    [HttpPost("{id}/archive")]
+    public async Task<IActionResult> Archive(int id, CancellationToken cancellationToken)
+    {
+        var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
+        if (rapport is null)
+            return NotFound();
+
+        if (rapport.EstArchive)
+            return BadRequest("Ce rapport est déjà archivé.");
+
+        rapport.EstArchive = true;
+        rapport.DateArchivage = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { rapport.Id, rapport.Titre });
+    }
+
+    /// <summary>
+    /// Restores an archived rapport.
+    /// </summary>
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
+        if (rapport is null)
+            return NotFound();
+
+        if (!rapport.EstArchive)
+            return BadRequest("Ce rapport n'est pas archivé.");
+
+        rapport.EstArchive = false;
+        rapport.DateArchivage = null;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { rapport.Id, rapport.Titre });
     }
 
     /// <summary>
