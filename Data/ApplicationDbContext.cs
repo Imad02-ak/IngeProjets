@@ -21,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SituationPaiement> SituationsPaiement => Set<SituationPaiement>();
     public DbSet<Avenant> Avenants => Set<Avenant>();
     public DbSet<Facture> Factures => Set<Facture>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -154,6 +155,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany()
                   .HasForeignKey(f => f.SituationPaiementId)
                   .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        // --- Notification ---
+        builder.Entity<Notification>(entity =>
+        {
+            entity.HasIndex(n => n.EstLue);
+            entity.HasIndex(n => n.DateCreation);
         });
     }
 }

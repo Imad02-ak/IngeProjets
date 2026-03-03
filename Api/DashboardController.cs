@@ -47,7 +47,7 @@ public class DashboardController : ControllerBase
             p => p.Statut == StatutProjet.EnRetard && p.DateModification != null && p.DateModification >= DateTime.UtcNow.Date,
             cancellationToken);
 
-        // Recent projects (chantiers récents)
+        // Recent projects (chantiers r&#233;cents)
         var projetsRecents = await _context.Projets
             .Where(p => !p.EstArchive)
             .OrderByDescending(p => p.DateCreation)
@@ -113,43 +113,32 @@ public class DashboardController : ControllerBase
             });
         }
 
-        // Recent activities (combining project creation, task changes, reports)
-        var activites = new List<object>();
-
-        var recentProjets = await _context.Projets
-            .Where(p => !p.EstArchive)
-            .OrderByDescending(p => p.DateCreation)
-            .Take(3)
-            .Select(p => new { p.Id, p.Nom, p.DateCreation, Type = "projet" })
+        // Recent activities (from notifications table)
+        var recentNotifications = await _context.Notifications
+            .AsNoTracking()
+            .OrderByDescending(n => n.DateCreation)
+            .Take(8)
+            .Select(n => new
+            {
+                n.Icon,
+                n.Couleur,
+                Texte = n.Message,
+                Date = n.DateCreation,
+                n.EntityType,
+                n.EntityId
+            })
             .ToListAsync(cancellationToken);
-        foreach (var p in recentProjets)
-        {
-            activites.Add(new { Icon = "fa-folder-plus", Couleur = "primary", Texte = $"Nouveau projet : {p.Nom}", Date = p.DateCreation, EntityType = "projet", EntityId = p.Id });
-        }
 
-        var recentTaches = await _context.Taches
-            .Where(t => !t.EstArchive && t.Statut == StatutTache.Terminee)
-            .OrderByDescending(t => t.DateFinReelle ?? t.DateCreation)
-            .Take(3)
-            .Select(t => new { t.Id, t.Titre, Projet = t.Projet.Nom, t.ProjetId, Date = t.DateFinReelle ?? t.DateCreation })
-            .ToListAsync(cancellationToken);
-        foreach (var t in recentTaches)
-        {
-            activites.Add(new { Icon = "fa-check-circle", Couleur = "success", Texte = $"Tâche terminée : {t.Titre} ({t.Projet})", Date = t.Date, EntityType = "tache", EntityId = t.Id });
-        }
-
-        var recentRapports = await _context.Rapports
-            .OrderByDescending(r => r.DateGeneration)
-            .Take(2)
-            .Select(r => new { r.Id, r.Titre, Type = r.Type.ToString(), r.DateGeneration, r.ProjetId })
-            .ToListAsync(cancellationToken);
-        foreach (var r in recentRapports)
-        {
-            activites.Add(new { Icon = "fa-file-lines", Couleur = "info", Texte = $"Rapport généré : {r.Titre}", Date = r.DateGeneration, EntityType = "rapport", EntityId = r.ProjetId ?? 0 });
-        }
-
-        var activitesSorted = activites
-            .OrderByDescending(a => ((dynamic)a).Date)
+        var activitesSorted = recentNotifications
+            .Select(n => (object)new
+            {
+                Icon = "fa-solid " + (n.Icon ?? "fa-bell"),
+                Couleur = n.Couleur ?? "info",
+                n.Texte,
+                n.Date,
+                n.EntityType,
+                n.EntityId
+            })
             .Take(6)
             .ToList();
 

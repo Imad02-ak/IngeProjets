@@ -39,11 +39,13 @@ public class TasksController : ControllerBase
 
     private readonly ApplicationDbContext _context;
     private readonly ProjetProgressionService _progressionService;
+    private readonly NotificationService _notificationService;
 
-    public TasksController(ApplicationDbContext context, ProjetProgressionService progressionService)
+    public TasksController(ApplicationDbContext context, ProjetProgressionService progressionService, NotificationService notificationService)
     {
         _context = context;
         _progressionService = progressionService;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -111,6 +113,9 @@ public class TasksController : ControllerBase
         _context.Taches.Add(tache);
         await _context.SaveChangesAsync(cancellationToken);
 
+        var projetNom = (await _context.Projets.FindAsync([tache.ProjetId], cancellationToken))?.Nom ?? "";
+        await _notificationService.NotifyTacheAsync(NotificationType.TacheCree, tache.Titre, projetNom, tache.Id, cancellationToken);
+
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
         return CreatedAtAction(nameof(Get), new { id = tache.Id }, new { tache.Id, tache.Titre });
@@ -157,6 +162,10 @@ public class TasksController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        var projetNomUpdate = (await _context.Projets.AsNoTracking().Where(p => p.Id == tache.ProjetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        var notifType = statut == StatutTache.Terminee ? NotificationType.TacheTerminee : NotificationType.TacheModifiee;
+        await _notificationService.NotifyTacheAsync(notifType, tache.Titre, projetNomUpdate, tache.Id, cancellationToken);
+
         // Cascade delay to dependent tasks (Fin → Début)
         if (request.DateEcheance != oldEcheance)
         {
@@ -192,6 +201,10 @@ public class TasksController : ControllerBase
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        var projetNomStatus = (await _context.Projets.AsNoTracking().Where(p => p.Id == tache.ProjetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        var statusNotifType = statut == StatutTache.Terminee ? NotificationType.TacheTerminee : NotificationType.TacheModifiee;
+        await _notificationService.NotifyTacheAsync(statusNotifType, tache.Titre, projetNomStatus, tache.Id, cancellationToken);
 
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
@@ -383,6 +396,9 @@ public class TasksController : ControllerBase
         tache.DateArchivage = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
+        var archiveProjetNom = (await _context.Projets.AsNoTracking().Where(p => p.Id == tache.ProjetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        await _notificationService.NotifyTacheAsync(NotificationType.TacheArchivee, tache.Titre, archiveProjetNom, tache.Id, cancellationToken);
+
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
         return Ok(new { tache.Id, tache.Titre, Message = "Tâche archivée avec succès" });
@@ -418,8 +434,13 @@ public class TasksController : ControllerBase
             return NotFound();
 
         var projetId = tache.ProjetId;
+        var tacheTitre = tache.Titre;
+        var deleteProjetNom = (await _context.Projets.AsNoTracking().Where(p => p.Id == projetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+
         _context.Taches.Remove(tache);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyTacheAsync(NotificationType.TacheSupprimee, tacheTitre, deleteProjetNom, id, cancellationToken);
 
         await _progressionService.RecalculerAvancementAsync(projetId, cancellationToken);
 

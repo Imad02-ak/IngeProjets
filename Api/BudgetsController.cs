@@ -1,6 +1,7 @@
 using IngeProjets.Api.Dtos;
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace IngeProjets.Api;
 public class BudgetsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly NotificationService _notificationService;
 
-    public BudgetsController(ApplicationDbContext context)
+    public BudgetsController(ApplicationDbContext context, NotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -118,6 +121,9 @@ public class BudgetsController : ControllerBase
         _context.TransactionsBudget.Add(transaction);
         await _context.SaveChangesAsync(cancellationToken);
 
+        var transProjetNom = (await _context.Projets.Where(p => p.Id == transaction.ProjetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        await _notificationService.NotifyTransactionAsync(NotificationType.TransactionCreee, transaction.Libelle, transProjetNom, transaction.ProjetId, cancellationToken);
+
         return CreatedAtAction(nameof(GetTransactions), new { projetId = transaction.ProjetId },
             new { transaction.Id, transaction.Libelle });
     }
@@ -130,8 +136,14 @@ public class BudgetsController : ControllerBase
         if (transaction is null)
             return NotFound();
 
+        var transLibelle = transaction.Libelle;
+        var transProjetId = transaction.ProjetId;
+        var delProjetNom = (await _context.Projets.Where(p => p.Id == transProjetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+
         _context.TransactionsBudget.Remove(transaction);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyTransactionAsync(NotificationType.TransactionSupprimee, transLibelle, delProjetNom, transProjetId, cancellationToken);
 
         return NoContent();
     }

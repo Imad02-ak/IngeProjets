@@ -16,15 +16,18 @@ public class RapportsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly PvPdfService _pvPdfService;
+    private readonly NotificationService _notificationService;
 
     public RapportsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        PvPdfService pvPdfService)
+        PvPdfService pvPdfService,
+        NotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
         _pvPdfService = pvPdfService;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -117,6 +120,8 @@ public class RapportsController : ControllerBase
         _context.Rapports.Add(rapport);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyRapportAsync(rapport.Titre, rapport.ProjetId, cancellationToken);
+
         return Ok(new
         {
             rapport.Id,
@@ -149,6 +154,8 @@ public class RapportsController : ControllerBase
         rapport.DateArchivage = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyRapportAsync(NotificationType.RapportArchive, rapport.Titre, rapport.ProjetId, cancellationToken);
+
         return Ok(new { rapport.Id, rapport.Titre });
     }
 
@@ -170,6 +177,8 @@ public class RapportsController : ControllerBase
         rapport.DateArchivage = null;
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyRapportAsync(NotificationType.RapportRestaure, rapport.Titre, rapport.ProjetId, cancellationToken);
+
         return Ok(new { rapport.Id, rapport.Titre });
     }
 
@@ -184,8 +193,13 @@ public class RapportsController : ControllerBase
         if (rapport is null)
             return NotFound();
 
+        var rapportTitre = rapport.Titre;
+        var rapportProjetId = rapport.ProjetId;
+
         _context.Rapports.Remove(rapport);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyRapportAsync(NotificationType.RapportSupprime, rapportTitre, rapportProjetId, cancellationToken);
 
         return NoContent();
     }

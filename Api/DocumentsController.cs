@@ -1,5 +1,6 @@
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -15,18 +16,21 @@ public class DocumentsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _env;
+    private readonly NotificationService _notificationService;
 
-    private static readonly HashSet<string> AllowedExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".png", ".jpg", ".jpeg", ".dwg", ".dxf", ".zip", ".rar", ".txt", ".csv"];
+    private static readonly HashSet<string> AllowedExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".png", ".jpg", ".jpeg", ".dwg", ".dxf", ".zip", ".rar", ".txt", ".csv", ".cod"];
     private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
 
     public DocumentsController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        NotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
         _env = env;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -110,6 +114,8 @@ public class DocumentsController : ControllerBase
         _context.Documents.Add(doc);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyDocumentAsync(safeFileName, projet.Nom, projetId, cancellationToken);
+
         return Ok(new
         {
             doc.Id,
@@ -162,6 +168,9 @@ public class DocumentsController : ControllerBase
         doc.DateArchivage = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
+        var archiveProjetNom = (await _context.Projets.Where(p => p.Id == projetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        await _notificationService.NotifyDocumentAsync(NotificationType.DocumentArchive, doc.NomOriginal, archiveProjetNom, projetId, cancellationToken);
+
         return Ok(new { doc.Id, doc.NomOriginal });
     }
 
@@ -185,6 +194,9 @@ public class DocumentsController : ControllerBase
         doc.DateArchivage = null;
         await _context.SaveChangesAsync(cancellationToken);
 
+        var restoreProjetNom = (await _context.Projets.Where(p => p.Id == projetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+        await _notificationService.NotifyDocumentAsync(NotificationType.DocumentRestaure, doc.NomOriginal, restoreProjetNom, projetId, cancellationToken);
+
         return Ok(new { doc.Id, doc.NomOriginal });
     }
 
@@ -203,11 +215,16 @@ public class DocumentsController : ControllerBase
 
         var filePath = Path.Combine(_env.ContentRootPath, "Uploads", "Documents", projetId.ToString(), doc.NomFichier);
 
+        var deleteDocNom = doc.NomOriginal;
+        var deleteProjetNom = (await _context.Projets.Where(p => p.Id == projetId).Select(p => p.Nom).FirstOrDefaultAsync(cancellationToken)) ?? "";
+
         if (System.IO.File.Exists(filePath))
             System.IO.File.Delete(filePath);
 
         _context.Documents.Remove(doc);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyDocumentAsync(NotificationType.DocumentSupprime, deleteDocNom, deleteProjetNom, projetId, cancellationToken);
 
         return NoContent();
     }

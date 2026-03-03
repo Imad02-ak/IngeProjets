@@ -1,6 +1,7 @@
 using IngeProjets.Api.Dtos;
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
@@ -13,10 +14,12 @@ namespace IngeProjets.Api;
 public class ImportController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly NotificationService _notificationService;
 
-    public ImportController(ApplicationDbContext context)
+    public ImportController(ApplicationDbContext context, NotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -73,6 +76,8 @@ public class ImportController : ControllerBase
                 var projet = MapToProjet(data);
                 _context.Projets.Add(projet);
                 await _context.SaveChangesAsync(cancellationToken);
+
+                await _notificationService.NotifyProjetAsync(NotificationType.ProjetCree, projet.Nom, projet.Id, cancellationToken);
 
                 results.Add(new ImportedProjectResult
                 {

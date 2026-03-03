@@ -123,6 +123,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<ProjetProgressionService>();
 builder.Services.AddScoped<ProjectMontantService>();
 builder.Services.AddScoped<PvPdfService>();
+builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
 

@@ -183,6 +183,7 @@ body {
 @media (max-width: 900px) {
     .container {
         flex-direction: column;
+        border-radius: 22px;
     }
 
     .left,
@@ -190,7 +191,148 @@ body {
         width: 100%;
     }
 
+    .left {
+        margin: 0;
+        border-radius: 22px 22px 0 0;
+        padding: 24px 20px;
+        min-height: 180px;
+    }
+
+    .right {
+        padding: 28px 24px;
+    }
+
     .row {
         flex-direction: column;
+    }
+
+    .logo {
+        width: 100px;
+        margin-bottom: 12px;
+    }
+
+    .brand {
+        font-size: 32px;
+        margin-bottom: 8px;
+    }
+
+    .tagline {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        padding: 12px;
+        align-items: flex-start;
+    }
+
+    .container {
+        max-width: 100%;
+        border-radius: 18px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .left {
+        padding: 18px 14px;
+        min-height: 140px;
+        border-radius: 18px 18px 0 0;
+    }
+
+    .logo {
+        width: 72px;
+        margin-bottom: 8px;
+    }
+
+    .brand {
+        font-size: 24px;
+        margin-bottom: 6px;
+    }
+
+    .tagline {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .right {
+        padding: 20px 16px;
+    }
+
+    .right h1 {
+        font-size: 20px;
+    }
+
+    .subtitle {
+        font-size: 14px;
+        margin: 4px 0 16px;
+    }
+
+    .input-box {
+        padding: 12px 14px;
+        gap: 10px;
+        border-radius: 14px;
+        margin-bottom: 12px;
+    }
+
+    .input-box input {
+        font-size: 13px;
+    }
+
+    .btn {
+        width: 90%;
+        padding: 13px;
+        font-size: 14px;
+        margin-top: 16px;
+    }
+
+    .login {
+        font-size: 12px;
+        margin-top: 14px;
+    }
+
+    .input-box:focus-within {
+        transform: none;
+    }
+}
+
+@media (max-width: 380px) {
+    body {
+        padding: 8px;
+    }
+
+    .left {
+        padding: 14px 10px;
+        min-height: 120px;
+    }
+
+    .logo {
+        width: 56px;
+    }
+
+    .brand {
+        font-size: 20px;
+    }
+
+    .tagline {
+        font-size: 11px;
+    }
+
+    .right {
+        padding: 16px 12px;
+    }
+
+    .right h1 {
+        font-size: 18px;
+    }
+
+    .input-box {
+        padding: 10px 12px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 12px;
     }
 }

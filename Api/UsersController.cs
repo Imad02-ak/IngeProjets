@@ -1,5 +1,6 @@
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,15 +17,18 @@ public class UsersController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ApplicationDbContext _context;
+    private readonly NotificationService _notificationService;
 
     public UsersController(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        NotificationService notificationService)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -115,6 +119,8 @@ public class UsersController : ControllerBase
         await _userManager.UpdateAsync(user);
         await _userManager.AddToRoleAsync(user, request.Role);
 
+        await _notificationService.NotifyUtilisateurAsync(NotificationType.UtilisateurApprouve, user.NomComplet);
+
         return Ok(new { message = "Utilisateur approuvé avec succès." });
     }
 
@@ -135,7 +141,12 @@ public class UsersController : ControllerBase
         if (user.EstApprouve)
             return BadRequest("Impossible de refuser un utilisateur déjà approuvé.");
 
+        var refusedUserName = user.NomComplet;
+
         await _userManager.DeleteAsync(user);
+
+        await _notificationService.NotifyUtilisateurAsync(NotificationType.UtilisateurRefuse, refusedUserName);
+
         return NoContent();
     }
 

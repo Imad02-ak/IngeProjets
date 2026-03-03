@@ -146,6 +146,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const welcomeTitle = $("pageTitle")?.textContent || "Tableau de bord";
 
+    // ===========================
+    // MOBILE SIDEBAR TOGGLE
+    // ===========================
+    const mobileMenuBtn = $("mobileMenuBtn");
+    const sidebarOverlay = $("sidebarOverlay");
+    const sidebar = $("sidebar");
+
+    function openMobileSidebar() {
+        if (sidebar) sidebar.classList.add("open");
+        if (sidebarOverlay) sidebarOverlay.classList.add("active");
+        if (mobileMenuBtn) {
+            mobileMenuBtn.querySelector("i").className = "fa-solid fa-xmark";
+        }
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeMobileSidebar() {
+        if (sidebar) sidebar.classList.remove("open");
+        if (sidebarOverlay) sidebarOverlay.classList.remove("active");
+        if (mobileMenuBtn) {
+            mobileMenuBtn.querySelector("i").className = "fa-solid fa-bars";
+        }
+        document.body.style.overflow = "";
+    }
+
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener("click", () => {
+            if (sidebar && sidebar.classList.contains("open")) {
+                closeMobileSidebar();
+            } else {
+                openMobileSidebar();
+            }
+        });
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener("click", closeMobileSidebar);
+    }
+
     function navigateTo(page) {
         // Désactiver tous les nav-items
         $$(".nav-item").forEach((item) => item.classList.remove("active"));
@@ -170,6 +209,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Mettre à jour l'URL
         window.history.pushState({ page }, "", `#${page}`);
+
+        // Fermer le menu mobile après navigation
+        closeMobileSidebar();
 
         // Charger les données de la page
         loadPageData(page);
@@ -360,7 +402,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // Time-ago helper for activity feed
     function getTimeAgo(dateStr) {
         if (!dateStr) return "";
-        const d = new Date(dateStr);
+        // Server returns UTC dates; ensure the string is parsed as UTC
+        const raw = dateStr.endsWith("Z") ? dateStr : dateStr + "Z";
+        const d = new Date(raw);
         const now = new Date();
         const diffMs = now - d;
         const diffMin = Math.floor(diffMs / 60000);
@@ -808,6 +852,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     if (result) {
                         showToast("success", "Tâche mise à jour", `Statut changé vers "${newApiStatus === 'AFaire' ? 'À faire' : newApiStatus === 'EnCours' ? 'En cours' : newApiStatus === 'EnRevue' ? 'En revue' : 'Terminée'}"`);
+                        refreshNotifBadge();
                         cachedTasks = [];
                         cachedProjects = [];
                         await loadTasks();
@@ -1935,6 +1980,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api("/api/rapports", { method: "POST", body: JSON.stringify(body) });
         if (result) {
             showToast("success", "Rapport généré", "Le rapport a été créé avec succès");
+            refreshNotifBadge();
             cachedRapports = [];
             await loadRapports();
             renderRapportsList();
@@ -2105,6 +2151,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/rapports/${rapportId}`, { method: "DELETE" });
         if (result !== null) {
             showToast("success", "Rapport supprimé", "Le rapport a été supprimé");
+            refreshNotifBadge();
             cachedRapports = [];
             await loadRapports();
             renderRapportsList();
@@ -2273,6 +2320,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result) {
                 showToast("success", "Utilisateur approuvé", "L'inscription a été acceptée.");
+                refreshNotifBadge();
                 cachedUsers = []; cachedPendingUsers = [];
                 await renderUsers();
             } else {
@@ -2289,6 +2337,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await api(`/api/users/${userId}/refuse`, { method: "DELETE" });
             if (result !== null) {
                 showToast("success", "Inscription refusée", "La demande a été supprimée.");
+                refreshNotifBadge();
                 cachedPendingUsers = [];
                 await renderUsers();
             } else {
@@ -2832,6 +2881,7 @@ document.addEventListener("DOMContentLoaded", () => {
             $("projectForm").reset();
             cachedProjects = [];
             await renderProjects();
+            refreshNotifBadge();
         } else {
             showToast("error", "Erreur", "Impossible de créer le projet. Vérifiez les champs.");
         }
@@ -2905,6 +2955,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api("/api/tasks", { method: "POST", body: JSON.stringify(body) });
         if (result) {
             showToast("success", "Tâche créée", "La tâche a été ajoutée au planning");
+            refreshNotifBadge();
             $("taskForm").reset();
             if ($("taskProgressionValue")) $("taskProgressionValue").textContent = "0%";
             cachedTasks = [];
@@ -2990,42 +3041,75 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Badge notifications
-    const badge = state.notif.btn?.querySelector(".badge");
-    const notifItems = () =>
-        state.notif.menu?.querySelectorAll(".notif-item") ?? [];
+    const badge = $("notifBadge");
 
-    const renderBadge = () => {
+    async function loadNotifications() {
+        const data = await api("/api/notifications");
+        if (!data) return;
+        const notifList = $("notifList");
+        if (!notifList) return;
+
+        if (data.length === 0) {
+            notifList.innerHTML = '<div class="notif-empty" style="padding:24px;text-align:center;color:var(--text-tertiary);"><i class="fa-solid fa-bell-slash" style="font-size:24px;margin-bottom:8px;display:block;"></i>Aucune notification</div>';
+        } else {
+            notifList.innerHTML = data.map(n => {
+                const timeAgo = getTimeAgo(n.dateCreation);
+                return `<a class="notif-item" href="#" role="menuitem" data-read="${n.estLue}" data-notif-id="${n.id}" data-entity-type="${n.entityType || ''}" data-entity-id="${n.entityId || ''}">
+                    <span class="notif-dot"></span>
+                    <div class="notif-content">
+                        <div class="notif-text">${esc(n.message)}</div>
+                        <div class="notif-time">${timeAgo}</div>
+                    </div>
+                </a>`;
+            }).join("");
+        }
+
+        updateNotifBadge(data);
+    }
+
+    function updateNotifBadge(data) {
         if (!badge) return;
-        const unread = [...notifItems()].filter(
-            (it) => it.dataset.read !== "true",
-        ).length;
+        const unread = data ? data.filter(n => !n.estLue).length : 0;
         badge.textContent = String(unread);
         badge.style.display = unread > 0 ? "flex" : "none";
-    };
+    }
+
+    async function refreshNotifBadge() {
+        const countData = await api("/api/notifications/unread-count");
+        if (!countData) return;
+        if (badge) {
+            badge.textContent = String(countData.count);
+            badge.style.display = countData.count > 0 ? "flex" : "none";
+        }
+    }
 
     // Notifications
     if (state.notif.btn && state.notif.menu) {
         state.notif.btn.addEventListener("click", (e) => {
             e.stopPropagation();
             toggleMenu("notif");
+            loadNotifications();
         });
 
-        state.notif.menu.addEventListener("click", (e) => {
+        state.notif.menu.addEventListener("click", async (e) => {
             const item = e.target.closest(".notif-item");
             if (item && item.dataset.read !== "true") {
                 item.dataset.read = "true";
-                renderBadge();
+                const notifId = item.dataset.notifId;
+                if (notifId) await api(`/api/notifications/${notifId}/read`, { method: "POST" });
+                refreshNotifBadge();
             }
         });
 
-        state.notif.clearBtn?.addEventListener("click", (e) => {
+        state.notif.clearBtn?.addEventListener("click", async (e) => {
             e.stopPropagation();
-            notifItems().forEach((it) => (it.dataset.read = "true"));
-            renderBadge();
+            await api("/api/notifications/mark-all-read", { method: "POST" });
+            state.notif.menu.querySelectorAll(".notif-item").forEach(it => it.dataset.read = "true");
+            if (badge) { badge.textContent = "0"; badge.style.display = "none"; }
             closeMenu("notif");
         });
 
-        renderBadge();
+        refreshNotifBadge();
     }
 
     // Profile
@@ -3474,6 +3558,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (action === "duplicate") {
                 showToast("success", "Projet dupliqué", "Le projet a été dupliqué avec succès");
+                refreshNotifBadge();
             } else if (action === "archive") {
                 await archiveProject(projectId);
             } else if (action === "delete") {
@@ -3528,7 +3613,8 @@ document.addEventListener("DOMContentLoaded", () => {
             };
             const result = await api(`/api/projects/${editingProjectId}`, { method: "PUT", body: JSON.stringify(body) });
             if (result) {
-                showToast("success", "Projet modifié", "Les modifications ont été enregistrées");
+            showToast("success", "Projet modifié", "Les modifications ont été enregistrées");
+            refreshNotifBadge();
                 cachedProjects = [];
                 await renderProjects();
             } else {
@@ -3555,6 +3641,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projectId}`, { method: "DELETE" });
         if (result !== null) {
             showToast("success", "Projet supprimé", "Le projet a été définitivement supprimé");
+            refreshNotifBadge();
             cachedProjects = [];
             await renderProjects();
         } else {
@@ -3644,6 +3731,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (result) created++;
                 }
                 showToast("success", "Import réussi", `${created} projet(s) importé(s) depuis le fichier JSON.`);
+                refreshNotifBadge();
             } else {
                 showToast("error", "Format non supporté", "Veuillez utiliser un fichier Excel (.xlsx) ou JSON.");
             }
@@ -3683,6 +3771,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (created.length > 0) {
             showToast("success", "Import réussi", `${created.length} projet(s) créé(s) automatiquement depuis Excel.`);
+            refreshNotifBadge();
         }
 
         if (incomplete.length > 0) {
@@ -4354,6 +4443,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/tasks/${editingTaskId}`, { method: "PUT", body: JSON.stringify(body) });
         if (result) {
             showToast("success", "Tâche modifiée", "Les modifications ont été enregistrées");
+            refreshNotifBadge();
             cachedTasks = [];
             cachedProjects = [];
             await Promise.all([loadTasks(), loadProjects()]);
@@ -4381,6 +4471,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/tasks/${taskId}`, { method: "DELETE" });
         if (result !== null) {
             showToast("success", "Tâche supprimée", "La tâche a été supprimée");
+            refreshNotifBadge();
             cachedTasks = [];
             cachedProjects = [];
             await Promise.all([loadTasks(), loadProjects()]);
@@ -4632,6 +4723,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (res.ok) {
                 showToast("success", "Document ajouté", "Le document a été uploadé avec succès");
+                refreshNotifBadge();
                 await loadDocuments(currentDocProjetId);
             } else {
                 const err = await res.text();
@@ -4658,6 +4750,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projetId}/documents/${docId}`, { method: "DELETE" });
         if (result !== null) {
             showToast("success", "Document supprimé", "Le document a été supprimé");
+            refreshNotifBadge();
             await loadDocuments(projetId);
         } else {
             showToast("error", "Erreur", "Impossible de supprimer le document.");
@@ -4672,6 +4765,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projectId}/archive`, { method: "POST" });
         if (result) {
             showToast("success", "Projet archivé", "Le projet et ses tâches ont été déplacés dans les archives");
+            refreshNotifBadge();
             cachedProjects = [];
             cachedTasks = [];
             await renderProjects();
@@ -4684,6 +4778,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projectId}/restore`, { method: "POST" });
         if (result) {
             showToast("success", "Projet restauré", "Le projet a été restauré avec succès");
+            refreshNotifBadge();
             cachedProjects = [];
             cachedTasks = [];
             await renderArchives();
@@ -4696,6 +4791,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/tasks/${taskId}/archive`, { method: "POST" });
         if (result) {
             showToast("success", "Tâche archivée", "La tâche a été déplacée dans les archives");
+            refreshNotifBadge();
             cachedTasks = [];
             await renderPlanning();
         } else {
@@ -4707,6 +4803,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/tasks/${taskId}/restore`, { method: "POST" });
         if (result) {
             showToast("success", "Tâche restaurée", "La tâche a été restaurée avec succès");
+            refreshNotifBadge();
             cachedTasks = [];
             await renderArchives();
         } else {
@@ -4718,6 +4815,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/rapports/${rapportId}/archive`, { method: "POST" });
         if (result) {
             showToast("success", "Rapport archivé", "Le rapport a été déplacé dans les archives");
+            refreshNotifBadge();
             cachedRapports = [];
             await renderReports();
         } else {
@@ -4729,6 +4827,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/rapports/${rapportId}/restore`, { method: "POST" });
         if (result) {
             showToast("success", "Rapport restauré", "Le rapport a été restauré avec succès");
+            refreshNotifBadge();
             await renderArchives();
         } else {
             showToast("error", "Erreur", "Impossible de restaurer le rapport.");
@@ -4739,6 +4838,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projetId}/documents/${docId}/archive`, { method: "POST" });
         if (result) {
             showToast("success", "Document archivé", "Le document a été déplacé dans les archives");
+            refreshNotifBadge();
             loadDocuments(projetId);
         } else {
             showToast("error", "Erreur", "Impossible d'archiver le document.");
@@ -4749,6 +4849,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await api(`/api/projects/${projetId}/documents/${docId}/restore`, { method: "POST" });
         if (result) {
             showToast("success", "Document restauré", "Le document a été restauré avec succès");
+            refreshNotifBadge();
             await renderArchives();
         } else {
             showToast("error", "Erreur", "Impossible de restaurer le document.");
@@ -4987,4 +5088,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     handleHash();
+
+    // Periodically refresh notification badge (every 30 seconds)
+    setInterval(() => { if (typeof refreshNotifBadge === "function") refreshNotifBadge(); }, 30000);
 });

@@ -1,6 +1,7 @@
 using IngeProjets.Api.Dtos;
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace IngeProjets.Api;
 public class ProjectsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly NotificationService _notificationService;
 
-    public ProjectsController(ApplicationDbContext context)
+    public ProjectsController(ApplicationDbContext context, NotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     [HttpGet]
@@ -141,6 +144,8 @@ public class ProjectsController : ControllerBase
         _context.Projets.Add(projet);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyProjetAsync(NotificationType.ProjetCree, projet.Nom, projet.Id, cancellationToken);
+
         return CreatedAtAction(nameof(Get), new { id = projet.Id }, new { projet.Id, projet.Nom });
     }
 
@@ -183,6 +188,8 @@ public class ProjectsController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyProjetAsync(NotificationType.ProjetModifie, projet.Nom, projet.Id, cancellationToken);
+
         return Ok(new { projet.Id, projet.Nom });
     }
 
@@ -214,6 +221,8 @@ public class ProjectsController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyProjetAsync(NotificationType.ProjetArchive, projet.Nom, projet.Id, cancellationToken);
+
         return Ok(new { projet.Id, projet.Nom, Message = "Projet archivé avec succès" });
     }
 
@@ -244,6 +253,8 @@ public class ProjectsController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        await _notificationService.NotifyProjetAsync(NotificationType.ProjetRestaure, projet.Nom, projet.Id, cancellationToken);
+
         return Ok(new { projet.Id, projet.Nom, Message = "Projet restauré avec succès" });
     }
 
@@ -255,8 +266,11 @@ public class ProjectsController : ControllerBase
         if (projet is null)
             return NotFound();
 
+        var projetNom = projet.Nom;
         _context.Projets.Remove(projet);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyProjetAsync(NotificationType.ProjetSupprime, projetNom, id, cancellationToken);
 
         return NoContent();
     }
