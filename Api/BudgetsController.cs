@@ -9,7 +9,7 @@ namespace IngeProjets.Api;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireGestionFinanciere")]
 public class BudgetsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -24,7 +24,7 @@ public class BudgetsController : ControllerBase
     {
         var budgetTotal = await _context.Projets.Where(p => !p.EstArchive).SumAsync(p => p.BudgetAlloue, cancellationToken);
         var depenses = await _context.TransactionsBudget
-            .Where(t => t.Type == TypeTransaction.Depense)
+            .Where(t => t.Type == TypeTransaction.Depense && !t.Projet.EstArchive)
             .SumAsync(t => t.Montant, cancellationToken);
         var restant = budgetTotal - depenses;
 

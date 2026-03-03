@@ -33,7 +33,7 @@ public class DashboardController : ControllerBase
         // Montant total = sum of all BudgetAlloue for active projects
         var montantTotal = await activeProjects.SumAsync(p => p.BudgetAlloue, cancellationToken);
         var depensesTotales = await _context.TransactionsBudget
-            .Where(t => t.Type == TypeTransaction.Depense)
+            .Where(t => t.Type == TypeTransaction.Depense && !t.Projet.EstArchive)
             .SumAsync(t => t.Montant, cancellationToken);
         var budgetUtilise = montantTotal > 0
             ? Math.Round(depensesTotales / montantTotal * 100, 0)
@@ -236,6 +236,103 @@ public class DashboardController : ControllerBase
         return Ok(new { Projets = projets, Taches = taches, Utilisateurs = utilisateurs });
     }
 
+    [HttpGet("evolution")]
+    public async Task<IActionResult> GetEvolution([FromQuery] string period = "month", CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var evolution = new List<object>();
+
+        switch (period)
+        {
+            case "week":
+            {
+                // Last 7 days
+                for (var i = 6; i >= 0; i--)
+                {
+                    var day = now.AddDays(-i).Date;
+                    var endOfDay = day.AddDays(1).AddTicks(-1);
+
+                    var actifs = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnCours && p.DateCreation <= endOfDay, cancellationToken);
+                    var termines = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.Termine && (p.DateFinReelle == null || p.DateFinReelle <= endOfDay), cancellationToken);
+                    var enRetard = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnRetard && p.DateCreation <= endOfDay, cancellationToken);
+                    var enPause = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnPause && p.DateCreation <= endOfDay, cancellationToken);
+
+                    evolution.Add(new
+                    {
+                        Label = day.ToString("ddd dd", new System.Globalization.CultureInfo("fr-FR")),
+                        Actifs = actifs,
+                        Termines = termines,
+                        EnRetard = enRetard,
+                        EnPause = enPause
+                    });
+                }
+                break;
+            }
+            case "year":
+            {
+                // Last 12 months
+                for (var i = 11; i >= 0; i--)
+                {
+                    var moisDate = now.AddMonths(-i);
+                    var finMois = new DateTime(moisDate.Year, moisDate.Month, DateTime.DaysInMonth(moisDate.Year, moisDate.Month), 23, 59, 59);
+
+                    var actifs = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnCours && p.DateCreation <= finMois, cancellationToken);
+                    var termines = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.Termine && (p.DateFinReelle == null || p.DateFinReelle <= finMois), cancellationToken);
+                    var enRetard = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnRetard && p.DateCreation <= finMois, cancellationToken);
+                    var enPause = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnPause && p.DateCreation <= finMois, cancellationToken);
+
+                    evolution.Add(new
+                    {
+                        Label = moisDate.ToString("MMM yyyy", new System.Globalization.CultureInfo("fr-FR")),
+                        Actifs = actifs,
+                        Termines = termines,
+                        EnRetard = enRetard,
+                        EnPause = enPause
+                    });
+                }
+                break;
+            }
+            default: // month - last 30 days grouped by week
+            {
+                for (var i = 3; i >= 0; i--)
+                {
+                    var weekEnd = now.AddDays(-i * 7).Date;
+                    var weekStart = weekEnd.AddDays(-6);
+                    var endOfWeek = weekEnd.AddDays(1).AddTicks(-1);
+
+                    var actifs = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnCours && p.DateCreation <= endOfWeek, cancellationToken);
+                    var termines = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.Termine && (p.DateFinReelle == null || p.DateFinReelle <= endOfWeek), cancellationToken);
+                    var enRetard = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnRetard && p.DateCreation <= endOfWeek, cancellationToken);
+                    var enPause = await _context.Projets
+                        .CountAsync(p => !p.EstArchive && p.Statut == StatutProjet.EnPause && p.DateCreation <= endOfWeek, cancellationToken);
+
+                    evolution.Add(new
+                    {
+                        Label = $"{weekStart:dd/MM} - {weekEnd:dd/MM}",
+                        Actifs = actifs,
+                        Termines = termines,
+                        EnRetard = enRetard,
+                        EnPause = enPause
+                    });
+                }
+                break;
+            }
+        }
+
+        return Ok(evolution);
+    }
+
     [HttpGet("me")]
     public async Task<IActionResult> GetCurrentUser()
     {
@@ -244,6 +341,7 @@ public class DashboardController : ControllerBase
             return Unauthorized();
 
         var roles = await _userManager.GetRolesAsync(user);
+        var role = roles.FirstOrDefault() ?? "Inconnu";
 
         return Ok(new
         {
@@ -252,7 +350,47 @@ public class DashboardController : ControllerBase
             user.Prenom,
             user.NomComplet,
             user.Email,
-            Role = roles.FirstOrDefault() ?? "Inconnu"
+            user.Poste,
+            user.DateCreation,
+            Role = role,
+            Permissions = GetPermissions(role)
         });
+    }
+
+    /// <summary>Returns the permission map for the given role.</summary>
+    private static object GetPermissions(string role)
+    {
+        var isGerant = role == "Gerant";
+        var isCoGerant = role == "CoGerant";
+        var isDirecteur = role == "DirecteurTechnique";
+        var isIngenieur = role == "Ingenieur";
+        var isSecretaire = role == "Secretaire";
+
+        var isDirection = isGerant || isCoGerant;
+        var isEncadrement = isDirection || isDirecteur;
+        var isTechnique = isEncadrement || isIngenieur;
+
+        return new
+        {
+            // Navigation / sections visibles
+            Dashboard = true,
+            Projets = true,
+            ProjetsModifier = isEncadrement,
+            ProjetsSupprimer = isDirection,
+            Planning = true,
+            PlanningModifier = isTechnique,
+            Budgets = isEncadrement || isSecretaire,
+            Rapports = true,
+            RapportsModifier = isEncadrement || isSecretaire,
+            Archives = isDirection,
+            Utilisateurs = isDirection,
+            Parametres = true,
+            // Documents
+            DocumentsAjouter = isEncadrement || isSecretaire,
+            DocumentsSupprimer = isDirection,
+            // Import/Export
+            ImporterProjets = isEncadrement,
+            ExporterUtilisateurs = isDirection
+        };
     }
 }

@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model IngeProjets.Pages.RegisterModel
 @{
     Layout = null;
@@ -9,7 +9,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Créer un compte - Ingé-Projets</title>
+    <title>Cr&#233;er un compte - Ing&#233;-Projets</title>
     <link rel="icon" type="image/png" href="~/images/logo.png" />
     <link rel="stylesheet" href="~/css/Register.css" />
     <link rel="stylesheet"
@@ -23,20 +23,20 @@
         <img src="~/images/logo.png" class="logo" />
 
         <h2 class="brand">
-            <span class="ing">Ingé</span><span class="dash">-</span>
+            <span class="ing">Ing&#233;</span><span class="dash">-</span>
             <span class="pro">Pro</span><span class="jets">jets</span>
         </h2>
 
         <p class="tagline">
-            Le suivi technique, maîtrisé<br />
-            à la perfection
+            Le suivi technique, ma&#238;tris&#233;<br />
+            &#224; la perfection
         </p>
     </div>
 
     <div class="right">
-        <h1>Créer un compte</h1>
+        <h1>Cr&#233;er un compte</h1>
         <p class="subtitle">
-            Remplissez vos informations pour accéder à Ingé-Projets.
+            Remplissez vos informations pour acc&#233;der &#224; Ing&#233;-Projets.
         </p>
 
         <form method="post">
@@ -49,7 +49,7 @@
 
                 <div class="input-box">
                     <i class="fa-solid fa-user"></i>
-                    <input asp-for="Prenom" placeholder="Prénom" required />
+                    <input asp-for="Prenom" placeholder="Pr&#233;nom" required />
                 </div>
             </div>
 
@@ -60,9 +60,14 @@
             </div>
 
             <div class="input-box full">
+                <i class="fa-solid fa-briefcase"></i>
+                <input asp-for="Poste" placeholder="Poste (optionnel)" />
+            </div>
+
+            <div class="input-box full">
                 <i class="fa-solid fa-lock"></i>
                 <input asp-for="Password" type="password"
-                       placeholder="Mot de passe" required />
+                       placeholder="Mot de passe (min. 8 car., 1 majuscule, 1 chiffre, 1 sp&#233;cial)" required />
             </div>
 
             <div class="input-box full">
@@ -71,20 +76,34 @@
                        placeholder="Confirmer le mot de passe" required />
             </div>
 
-            <button class="btn">Créer un compte</button>
+            @if (Model.IsAdmin)
+            {
+                <div class="input-box full">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <select asp-for="SelectedRole" asp-items="Model.RoleOptions"
+                            style="width:100%;border:none;outline:none;background:transparent;font-size:inherit;padding:4px 0;">
+                        <option value="">-- Assigner un r&#244;le --</option>
+                    </select>
+                </div>
+            }
+
+            <button class="btn">Cr&#233;er un compte</button>
 
             <p class="login"
                onclick="window.location.href='/Login'"
                style="cursor:pointer;">
-                Déjà un compte ? <strong>Se connecter →</strong>
+                D&#233;j&#224; un compte ? <strong>Se connecter &#8594;</strong>
             </p>
 
             @if (!string.IsNullOrEmpty(Model.Message))
             {
-                <p style="text-align:center;color:green;font-weight:600;">
+                var color = Model.IsSuccess ? "green" : "red";
+                <p style="text-align:center;color:@color;font-weight:600;">
                     @Model.Message
                 </p>
             }
+
+            <div asp-validation-summary="All" style="color:red;font-size:0.9em;text-align:center;"></div>
 
         </form>
     </div>

@@ -246,21 +246,29 @@ document.addEventListener("DOMContentLoaded", () => {
             dashKpis[0].querySelector(".kpi-value").textContent = k.chantiersActifs;
             dashKpis[0].querySelector(".kpi-change").textContent = k.nouveauxCeMois > 0 ? `+${k.nouveauxCeMois} ce mois` : "Aucun nouveau";
             dashKpis[0].querySelector(".kpi-change").className = `kpi-change ${k.nouveauxCeMois > 0 ? 'kpi-change--positive' : 'kpi-change--neutral'}`;
+            dashKpis[0].style.cursor = "pointer";
+            dashKpis[0].onclick = () => { navigateTo("projets"); setTimeout(() => { const sel = $("filterStatus"); if (sel) { sel.value = "progress"; sel.dispatchEvent(new Event("change")); } }, 300); };
 
             // Projets Terminés
             dashKpis[1].querySelector(".kpi-value").textContent = k.projetsTermines;
             dashKpis[1].querySelector(".kpi-change").textContent = k.projetsTermines > 0 ? `${k.projetsTermines} terminé(s)` : "Aucun terminé";
             dashKpis[1].querySelector(".kpi-change").className = `kpi-change ${k.projetsTermines > 0 ? 'kpi-change--positive' : 'kpi-change--neutral'}`;
+            dashKpis[1].style.cursor = "pointer";
+            dashKpis[1].onclick = () => { navigateTo("projets"); setTimeout(() => { const sel = $("filterStatus"); if (sel) { sel.value = "completed"; sel.dispatchEvent(new Event("change")); } }, 300); };
 
             // Alertes (En Retard)
             dashKpis[2].querySelector(".kpi-value").textContent = k.alertes;
             dashKpis[2].querySelector(".kpi-change").textContent = k.alertes > 0 ? `${k.alertes} en retard` : "Aucune alerte";
             dashKpis[2].querySelector(".kpi-change").className = `kpi-change ${k.alertes > 0 ? 'kpi-change--negative' : 'kpi-change--positive'}`;
+            dashKpis[2].style.cursor = "pointer";
+            dashKpis[2].onclick = () => { navigateTo("projets"); setTimeout(() => { const sel = $("filterStatus"); if (sel) { sel.value = "delayed"; sel.dispatchEvent(new Event("change")); } }, 300); };
 
             // Montant Total (replace Budget Total)
             dashKpis[3].querySelector(".kpi-value").textContent = formatAppCurrency(k.montantTotal);
             dashKpis[3].querySelector(".kpi-change").textContent = `${k.budgetUtilise}% utilisé`;
             dashKpis[3].querySelector(".kpi-change").className = `kpi-change ${k.budgetUtilise > 90 ? 'kpi-change--negative' : k.budgetUtilise > 70 ? 'kpi-change--warning' : 'kpi-change--neutral'}`;
+            dashKpis[3].style.cursor = "pointer";
+            dashKpis[3].onclick = () => { navigateTo("budgets"); };
         }
 
         // --- Chantiers Récents ---
@@ -366,55 +374,87 @@ document.addEventListener("DOMContentLoaded", () => {
         return formatAppDate(dateStr, { day: "numeric", month: "short" });
     }
 
-    function initDashboardCharts(data) {
-        // Projects Evolution Chart - with real data from API
+    // Evolution chart: load from dedicated filtered endpoint
+    async function loadEvolutionChart(period) {
         const projectsChartEl = $("projectsChart");
-        if (projectsChartEl && window.Chart) {
-            const ctx = projectsChartEl.getContext("2d");
+        if (!projectsChartEl || !window.Chart) return;
 
-            if (projectsChartEl.chartInstance) {
-                projectsChartEl.chartInstance.destroy();
-            }
+        const evoData = await api(`/api/dashboard/evolution?period=${period}`);
+        if (!evoData) return;
 
-            const evoLabels = data?.evolution ? data.evolution.map(e => e.mois) : [];
-            const evoActifs = data?.evolution ? data.evolution.map(e => e.actifs) : [];
-            const evoTermines = data?.evolution ? data.evolution.map(e => e.termines) : [];
-
-            projectsChartEl.chartInstance = new Chart(ctx, {
-                type: "line",
-                data: {
-                    labels: evoLabels,
-                    datasets: [
-                        {
-                            label: "Projets actifs",
-                            data: evoActifs,
-                            borderColor: "#e50908",
-                            backgroundColor: "rgba(229, 9, 8, 0.1)",
-                            fill: true,
-                            tension: 0.4,
-                        },
-                        {
-                            label: "Projets terminés",
-                            data: evoTermines,
-                            borderColor: "#10b981",
-                            backgroundColor: "rgba(16, 185, 129, 0.1)",
-                            fill: true,
-                            tension: 0.4,
-                        },
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: "bottom" },
-                    },
-                    scales: {
-                        y: { beginAtZero: true },
-                    },
-                },
-            });
+        const ctx = projectsChartEl.getContext("2d");
+        if (projectsChartEl.chartInstance) {
+            projectsChartEl.chartInstance.destroy();
         }
+
+        const evoLabels = evoData.map(e => e.label);
+        const evoActifs = evoData.map(e => e.actifs);
+        const evoTermines = evoData.map(e => e.termines);
+        const evoEnRetard = evoData.map(e => e.enRetard);
+        const evoEnPause = evoData.map(e => e.enPause);
+
+        projectsChartEl.chartInstance = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: evoLabels,
+                datasets: [
+                    {
+                        label: "Projets actifs",
+                        data: evoActifs,
+                        borderColor: "#e50908",
+                        backgroundColor: "rgba(229, 9, 8, 0.1)",
+                        fill: true,
+                        tension: 0.4,
+                    },
+                    {
+                        label: "Projets terminés",
+                        data: evoTermines,
+                        borderColor: "#10b981",
+                        backgroundColor: "rgba(16, 185, 129, 0.1)",
+                        fill: true,
+                        tension: 0.4,
+                    },
+                    {
+                        label: "En retard",
+                        data: evoEnRetard,
+                        borderColor: "#f59e0b",
+                        backgroundColor: "rgba(245, 158, 11, 0.1)",
+                        fill: true,
+                        tension: 0.4,
+                    },
+                    {
+                        label: "En pause",
+                        data: evoEnPause,
+                        borderColor: "#6b7280",
+                        backgroundColor: "rgba(107, 114, 128, 0.08)",
+                        fill: true,
+                        tension: 0.4,
+                        borderDash: [5, 5],
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: "bottom" },
+                },
+                scales: {
+                    y: { beginAtZero: true },
+                },
+            },
+        });
+    }
+
+    // Wire chart period filter
+    $("chartPeriod")?.addEventListener("change", (e) => {
+        loadEvolutionChart(e.target.value);
+    });
+
+    function initDashboardCharts(data) {
+        // Load evolution chart with current filter value
+        const period = $("chartPeriod")?.value || "month";
+        loadEvolutionChart(period);
 
         // Type Distribution Chart - with real data from API
         const typeChartEl = $("typeChart");
@@ -1392,12 +1432,15 @@ document.addEventListener("DOMContentLoaded", () => {
         switch (type) {
             case "Qualite":
                 return `
+                    <div class="pv-info-note" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9em;color:#92400e;">
+                        <i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>
+                        Les informations du projet seront récupérées automatiquement depuis le projet sélectionné ci-dessus.
+                    </div>
                     <div class="form-group"><label class="form-label">Objet du contrôle *</label><input type="text" class="form-input" id="rf_objetControle" required placeholder="Ex: Vérification béton – Bloc A" /></div>
                     <div class="form-row">
                         <div class="form-group"><label class="form-label">Date du contrôle *</label><input type="date" class="form-input" id="rf_dateControle" required /></div>
-                        <div class="form-group"><label class="form-label">Lieu du contrôle</label><input type="text" class="form-input" id="rf_lieuControle" placeholder="Ex: Chantier Lot 3" /></div>
+                        <div class="form-group"><label class="form-label">Contrôleur</label><input type="text" class="form-input" id="rf_controleur" placeholder="Nom du contrôleur" /></div>
                     </div>
-                    <div class="form-group"><label class="form-label">Contrôleur</label><input type="text" class="form-input" id="rf_controleur" placeholder="Nom du contrôleur" /></div>
                     <div class="form-group"><label class="form-label">Résultat du contrôle *</label>
                         <select class="form-select" id="rf_resultat">
                             <option value="Conforme">Conforme</option>
@@ -1405,63 +1448,56 @@ document.addEventListener("DOMContentLoaded", () => {
                             <option value="Partiellement conforme">Partiellement conforme</option>
                         </select>
                     </div>
-                    <div class="form-group"><label class="form-label">Observations / Non-conformités</label><textarea class="form-textarea" id="rf_observations" rows="4" placeholder="Détail des observations..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Observations / Non-conformités</label><textarea class="form-textarea" id="rf_observations" rows="3" placeholder="Détail des observations..."></textarea></div>
                     <div class="form-group"><label class="form-label">Actions correctives recommandées</label><textarea class="form-textarea" id="rf_actions" rows="3" placeholder="Actions à entreprendre..."></textarea></div>`;
             case "Bordereau":
                 return `
+                    <div class="pv-info-note" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9em;color:#92400e;">
+                        <i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>
+                        Les informations du projet seront récupérées automatiquement depuis le projet sélectionné ci-dessus.
+                    </div>
                     <div class="form-row">
                         <div class="form-group"><label class="form-label">Numéro du bordereau</label><input type="text" class="form-input" id="rf_numeroBordereau" placeholder="Ex: BRD-2026-001" /></div>
                         <div class="form-group"><label class="form-label">Date du bordereau *</label><input type="date" class="form-input" id="rf_dateBordereau" required /></div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destinataire" required placeholder="Ex: Maître d'ouvrage" /></div>
-                        <div class="form-group"><label class="form-label">Expéditeur</label><input type="text" class="form-input" id="rf_expediteur" placeholder="Ex: Entreprise XYZ" /></div>
-                    </div>
+                    <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destinataire" required placeholder="Nom et qualité du destinataire" /></div>
                     <div class="form-group"><label class="form-label">Objet *</label><input type="text" class="form-input" id="rf_objetBordereau" required placeholder="Objet du bordereau d'envoi" /></div>
-                    <div class="form-group"><label class="form-label">Liste des pièces jointes</label><textarea class="form-textarea" id="rf_piecesJointes" rows="4" placeholder="1. Plan d'exécution\n2. Note de calcul\n3. ..."></textarea></div>
+                    <div class="form-group"><label class="form-label">Liste des pièces jointes *</label><textarea class="form-textarea" id="rf_piecesJointes" rows="4" required placeholder="1. Plan d'exécution\n2. Note de calcul\n3. ..."></textarea></div>
                     <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsBordereau" rows="3" placeholder="Observations éventuelles..."></textarea></div>`;
             case "Courrier":
                 return `
+                    <div class="pv-info-note" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9em;color:#92400e;">
+                        <i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>
+                        Les informations du projet seront récupérées automatiquement depuis le projet sélectionné ci-dessus.
+                    </div>
                     <div class="form-row">
                         <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refCourrier" placeholder="Ex: COR-2026-045" /></div>
                         <div class="form-group"><label class="form-label">Date du courrier *</label><input type="date" class="form-input" id="rf_dateCourrier" required /></div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destCourrier" required placeholder="Nom et qualité du destinataire" /></div>
-                        <div class="form-group"><label class="form-label">Expéditeur *</label><input type="text" class="form-input" id="rf_expCourrier" required placeholder="Nom et qualité de l'expéditeur" /></div>
-                    </div>
+                    <div class="form-group"><label class="form-label">Destinataire *</label><input type="text" class="form-input" id="rf_destCourrier" required placeholder="Nom et qualité du destinataire" /></div>
                     <div class="form-group"><label class="form-label">Objet *</label><input type="text" class="form-input" id="rf_objetCourrier" required placeholder="Objet du courrier" /></div>
                     <div class="form-group"><label class="form-label">Corps du courrier *</label><textarea class="form-textarea" id="rf_corpsCourrier" rows="8" required placeholder="Monsieur / Madame,\n\nNous avons l'honneur de..."></textarea></div>
                     <div class="form-group"><label class="form-label">Pièces jointes</label><input type="text" class="form-input" id="rf_pjCourrier" placeholder="Liste des pièces jointes" /></div>`;
             case "ReceptionProvisoire":
                 return `
-                    <div class="form-row">
-                        <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refRP" placeholder="Ex: RP-2026-001" /></div>
-                        <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRP" required /></div>
+                    <div class="pv-info-note" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9em;color:#92400e;">
+                        <i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>
+                        Les informations du projet (nom, lieu, maître d'ouvrage, montant, dates) seront récupérées automatiquement depuis le projet sélectionné ci-dessus.
                     </div>
-                    <div class="form-group"><label class="form-label">Maître d'ouvrage *</label><input type="text" class="form-input" id="rf_moRP" required placeholder="Nom du maître d'ouvrage" /></div>
+                    <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRP" required /></div>
                     <div class="form-group"><label class="form-label">Entreprise réalisatrice *</label><input type="text" class="form-input" id="rf_entrepriseRP" required placeholder="Nom de l'entreprise" /></div>
-                    <div class="form-group"><label class="form-label">Désignation des travaux *</label><textarea class="form-textarea" id="rf_designationRP" rows="3" required placeholder="Description des travaux réalisés..."></textarea></div>
-                    <div class="form-row">
-                        <div class="form-group"><label class="form-label">Date début des travaux</label><input type="date" class="form-input" id="rf_dateDebutRP" /></div>
-                        <div class="form-group"><label class="form-label">Date fin des travaux</label><input type="date" class="form-input" id="rf_dateFinRP" /></div>
-                    </div>
-                    <div class="form-group"><label class="form-label">Montant des travaux (€)</label><input type="number" class="form-input" id="rf_montantRP" placeholder="Montant en euros" /></div>
-                    <div class="form-group"><label class="form-label">Réserves éventuelles</label><textarea class="form-textarea" id="rf_reservesRP" rows="3" placeholder="Réserves constatées lors de la visite..."></textarea></div>
-                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRP" rows="3" placeholder="Observations complémentaires..."></textarea></div>`;
+                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRP" rows="3" placeholder="Observations complémentaires (facultatif)..."></textarea></div>`;
             case "ReceptionDefinitive":
                 return `
-                    <div class="form-row">
-                        <div class="form-group"><label class="form-label">Numéro de référence</label><input type="text" class="form-input" id="rf_refRD" placeholder="Ex: RD-2026-001" /></div>
-                        <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRD" required /></div>
+                    <div class="pv-info-note" style="background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9em;color:#92400e;">
+                        <i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>
+                        Les informations du projet seront récupérées automatiquement depuis le projet sélectionné ci-dessus.
                     </div>
-                    <div class="form-group"><label class="form-label">Maître d'ouvrage *</label><input type="text" class="form-input" id="rf_moRD" required placeholder="Nom du maître d'ouvrage" /></div>
+                    <div class="form-group"><label class="form-label">Date de la demande *</label><input type="date" class="form-input" id="rf_dateRD" required /></div>
                     <div class="form-group"><label class="form-label">Entreprise réalisatrice *</label><input type="text" class="form-input" id="rf_entrepriseRD" required placeholder="Nom de l'entreprise" /></div>
-                    <div class="form-group"><label class="form-label">Désignation des travaux *</label><textarea class="form-textarea" id="rf_designationRD" rows="3" required placeholder="Description des travaux réalisés..."></textarea></div>
-                    <div class="form-group"><label class="form-label">Date de réception provisoire</label><input type="date" class="form-input" id="rf_dateRProvRD" /></div>
                     <div class="form-row">
+                        <div class="form-group"><label class="form-label">Date de réception provisoire</label><input type="date" class="form-input" id="rf_dateRProvRD" /></div>
                         <div class="form-group"><label class="form-label">Durée de garantie (mois)</label><input type="number" class="form-input" id="rf_dureeGarantieRD" placeholder="Ex: 12" /></div>
-                        <div class="form-group"><label class="form-label">Montant des travaux (€)</label><input type="number" class="form-input" id="rf_montantRD" placeholder="Montant en euros" /></div>
                     </div>
                     <div class="form-group"><label class="form-label">État des réserves levées</label>
                         <select class="form-select" id="rf_reservesLeveesRD">
@@ -1470,7 +1506,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <option value="Aucune réserve">Aucune réserve</option>
                         </select>
                     </div>
-                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRD" rows="3" placeholder="Observations complémentaires..."></textarea></div>`;
+                    <div class="form-group"><label class="form-label">Observations</label><textarea class="form-textarea" id="rf_observationsRD" rows="3" placeholder="Observations complémentaires (facultatif)..."></textarea></div>`;
             case "Personnalise":
                 return `
                     <div class="form-group"><label class="form-label">Contenu du rapport *</label><textarea class="form-textarea" id="rf_contenuPerso" rows="12" required placeholder="Rédigez le contenu de votre rapport personnalisé..."></textarea></div>`;
@@ -1483,62 +1519,78 @@ document.addEventListener("DOMContentLoaded", () => {
     function collectRapportFormData(type) {
         const val = (id) => $(id)?.value?.trim() || "";
         switch (type) {
-            case "Qualite":
+            case "Qualite": {
+                const projQ = cachedProjects.find(p => p.id === parseInt($('rapportProjet')?.value));
                 return JSON.stringify({
                     objetControle: val("rf_objetControle"),
                     dateControle: val("rf_dateControle"),
-                    lieuControle: val("rf_lieuControle"),
                     controleur: val("rf_controleur"),
                     resultat: val("rf_resultat"),
                     observations: val("rf_observations"),
-                    actions: val("rf_actions")
+                    actions: val("rf_actions"),
+                    nomProjet: projQ?.nom || "",
+                    lieuProjet: projQ?.localisation || "",
+                    maitreOuvrage: projQ?.maitreOuvrage || ""
                 });
-            case "Bordereau":
+            }
+            case "Bordereau": {
+                const projB = cachedProjects.find(p => p.id === parseInt($('rapportProjet')?.value));
                 return JSON.stringify({
                     numeroBordereau: val("rf_numeroBordereau"),
                     dateBordereau: val("rf_dateBordereau"),
                     destinataire: val("rf_destinataire"),
-                    expediteur: val("rf_expediteur"),
                     objetBordereau: val("rf_objetBordereau"),
                     piecesJointes: val("rf_piecesJointes"),
-                    observations: val("rf_observationsBordereau")
+                    observations: val("rf_observationsBordereau"),
+                    nomProjet: projB?.nom || "",
+                    lieuProjet: projB?.localisation || "",
+                    maitreOuvrage: projB?.maitreOuvrage || ""
                 });
-            case "Courrier":
+            }
+            case "Courrier": {
+                const projC = cachedProjects.find(p => p.id === parseInt($('rapportProjet')?.value));
                 return JSON.stringify({
                     refCourrier: val("rf_refCourrier"),
                     dateCourrier: val("rf_dateCourrier"),
                     destinataire: val("rf_destCourrier"),
-                    expediteur: val("rf_expCourrier"),
                     objet: val("rf_objetCourrier"),
                     corps: val("rf_corpsCourrier"),
-                    piecesJointes: val("rf_pjCourrier")
+                    piecesJointes: val("rf_pjCourrier"),
+                    nomProjet: projC?.nom || "",
+                    lieuProjet: projC?.localisation || "",
+                    maitreOuvrage: projC?.maitreOuvrage || ""
                 });
-            case "ReceptionProvisoire":
+            }
+            case "ReceptionProvisoire": {
+                const projRP = cachedProjects.find(p => p.id === parseInt($('rapportProjet')?.value));
                 return JSON.stringify({
-                    reference: val("rf_refRP"),
                     dateDemande: val("rf_dateRP"),
-                    maitreOuvrage: val("rf_moRP"),
                     entreprise: val("rf_entrepriseRP"),
-                    designation: val("rf_designationRP"),
-                    dateDebut: val("rf_dateDebutRP"),
-                    dateFin: val("rf_dateFinRP"),
-                    montant: val("rf_montantRP"),
-                    reserves: val("rf_reservesRP"),
-                    observations: val("rf_observationsRP")
+                    observations: val("rf_observationsRP"),
+                    nomProjet: projRP?.nom || "",
+                    maitreOuvrage: projRP?.maitreOuvrage || "",
+                    lieuProjet: projRP?.localisation || "",
+                    montantMarche: projRP?.budgetAlloue?.toString() || "",
+                    dateDebut: projRP?.dateDebut?.split('T')[0] || "",
+                    dateFin: projRP?.dateFinPrevue?.split('T')[0] || ""
                 });
-            case "ReceptionDefinitive":
+            }
+            case "ReceptionDefinitive": {
+                const projRD = cachedProjects.find(p => p.id === parseInt($('rapportProjet')?.value));
                 return JSON.stringify({
-                    reference: val("rf_refRD"),
                     dateDemande: val("rf_dateRD"),
-                    maitreOuvrage: val("rf_moRD"),
                     entreprise: val("rf_entrepriseRD"),
-                    designation: val("rf_designationRD"),
                     dateReceptionProvisoire: val("rf_dateRProvRD"),
                     dureeGarantie: val("rf_dureeGarantieRD"),
-                    montant: val("rf_montantRD"),
                     reservesLevees: val("rf_reservesLeveesRD"),
-                    observations: val("rf_observationsRD")
+                    observations: val("rf_observationsRD"),
+                    nomProjet: projRD?.nom || "",
+                    maitreOuvrage: projRD?.maitreOuvrage || "",
+                    lieuProjet: projRD?.localisation || "",
+                    montantMarche: projRD?.budgetAlloue?.toString() || "",
+                    dateFin: projRD?.dateFinPrevue?.split('T')[0] || ""
                 });
+            }
             case "Personnalise":
                 return JSON.stringify({ contenu: val("rf_contenuPerso") });
             default:
@@ -1575,82 +1627,215 @@ document.addEventListener("DOMContentLoaded", () => {
         switch (rapport.type) {
             case "Qualite":
                 bodyHTML = `
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
+                    </div>
+                    <div class="pv-document-title">
+                        <h2>RAPPORT DE CONTRÔLE QUALITÉ</h2>
+                    </div>
+
+                    <h3>Informations du Projet</h3>
+                    <table class="rapport-table">
+                        <tr><th>Nom du projet</th><td>${esc(d.nomProjet || projet)}</td></tr>
+                        <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
+                        <tr><th>Lieu du projet</th><td>${esc(d.lieuProjet)}</td></tr>
+                    </table>
+
+                    <h3>Détail du Contrôle</h3>
                     <table class="rapport-table">
                         <tr><th>Objet du contrôle</th><td>${esc(d.objetControle)}</td></tr>
                         <tr><th>Date du contrôle</th><td>${formatAppDate(d.dateControle)}</td></tr>
-                        <tr><th>Lieu</th><td>${esc(d.lieuControle)}</td></tr>
-                        <tr><th>Contrôleur</th><td>${esc(d.controleur)}</td></tr>
-                        <tr><th>Résultat</th><td><strong>${esc(d.resultat)}</strong></td></tr>
+                        <tr><th>Contrôleur</th><td>${esc(d.controleur || '—')}</td></tr>
+                        <tr><th>Résultat</th><td><strong style="color:${d.resultat === 'Conforme' ? '#10b981' : d.resultat === 'Non conforme' ? '#e50908' : '#f59e0b'}">${esc(d.resultat)}</strong></td></tr>
                     </table>
-                    ${d.observations ? `<h3>Observations / Non-conformités</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
-                    ${d.actions ? `<h3>Actions correctives recommandées</h3><p class="rapport-text">${esc(d.actions).replace(/\n/g, '<br>')}</p>` : ''}`;
+
+                    ${d.observations ? `<h3>Observations / Non-conformités</h3><div class="pv-formal-text"><p>${esc(d.observations).replace(/\n/g, '<br>')}</p></div>` : ''}
+                    ${d.actions ? `<h3>Actions correctives recommandées</h3><div class="pv-formal-text"><p>${esc(d.actions).replace(/\n/g, '<br>')}</p></div>` : ''}
+
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>Le Contrôleur</p><div class="signature-line"></div><span class="signature-hint">Signature</span></div>
+                        <div class="rapport-signature-block"><p>Le Responsable du projet</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
+                    </div>`;
                 break;
             case "Bordereau":
                 bodyHTML = `
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
+                    </div>
+                    <div class="pv-document-title">
+                        <h2>BORDEREAU D'ENVOI</h2>
+                        ${d.numeroBordereau ? `<p class="pv-ref">N° : ${esc(d.numeroBordereau)}</p>` : ''}
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p><strong>${esc(d.lieuProjet || '_______________')}</strong>, le <strong>${formatAppDate(d.dateBordereau)}</strong></p>
+                    </div>
+
+                    <h3>Informations</h3>
                     <table class="rapport-table">
-                        <tr><th>N° Bordereau</th><td>${esc(d.numeroBordereau)}</td></tr>
-                        <tr><th>Date</th><td>${formatAppDate(d.dateBordereau)}</td></tr>
+                        <tr><th>Projet</th><td>${esc(d.nomProjet || projet)}</td></tr>
+                        <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
                         <tr><th>Destinataire</th><td>${esc(d.destinataire)}</td></tr>
-                        <tr><th>Expéditeur</th><td>${esc(d.expediteur)}</td></tr>
                         <tr><th>Objet</th><td>${esc(d.objetBordereau)}</td></tr>
                     </table>
-                    ${d.piecesJointes ? `<h3>Pièces jointes</h3><p class="rapport-text">${esc(d.piecesJointes).replace(/\n/g, '<br>')}</p>` : ''}
-                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}`;
+
+                    ${d.piecesJointes ? `<h3>Pièces jointes</h3><div class="pv-formal-text"><p>${esc(d.piecesJointes).replace(/\n/g, '<br>')}</p></div>` : ''}
+                    ${d.observations ? `<h3>Observations</h3><div class="pv-formal-text"><p>${esc(d.observations).replace(/\n/g, '<br>')}</p></div>` : ''}
+
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>L'Expéditeur</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
+                        <div class="rapport-signature-block"><p>Le Destinataire</p><div class="signature-line"></div><span class="signature-hint">Reçu le : ____/____/________</span></div>
+                    </div>`;
                 break;
             case "Courrier":
                 bodyHTML = `
-                    <table class="rapport-table">
-                        <tr><th>Référence</th><td>${esc(d.refCourrier)}</td></tr>
-                        <tr><th>Date</th><td>${formatAppDate(d.dateCourrier)}</td></tr>
-                        <tr><th>Destinataire</th><td>${esc(d.destinataire)}</td></tr>
-                        <tr><th>Expéditeur</th><td>${esc(d.expediteur)}</td></tr>
-                        <tr><th>Objet</th><td>${esc(d.objet)}</td></tr>
-                    </table>
-                    <div class="rapport-courrier-body">
-                        <p class="rapport-text">${esc(d.corps).replace(/\n/g, '<br>')}</p>
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
                     </div>
-                    ${d.piecesJointes ? `<p class="rapport-pj"><strong>PJ :</strong> ${esc(d.piecesJointes)}</p>` : ''}`;
+                    <div class="pv-document-title">
+                        <h2>COURRIER OFFICIEL</h2>
+                        ${d.refCourrier ? `<p class="pv-ref">Réf. : ${esc(d.refCourrier)}</p>` : ''}
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p><strong>${esc(d.lieuProjet || '_______________')}</strong>, le <strong>${formatAppDate(d.dateCourrier)}</strong></p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:8px;">
+                        <p><strong>Destinataire :</strong> ${esc(d.destinataire)}</p>
+                        <p><strong>Projet :</strong> ${esc(d.nomProjet || projet)}</p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:8px;">
+                        <p><strong>Objet :</strong> ${esc(d.objet)}</p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px; white-space:pre-line;">
+                        <p>${esc(d.corps || '').replace(/\n/g, '<br>')}</p>
+                    </div>
+
+                    ${d.piecesJointes ? `<div class="pv-formal-text"><p><strong>PJ :</strong> ${esc(d.piecesJointes)}</p></div>` : ''}
+
+                    <div class="pv-formal-text" style="margin-top:16px;">
+                        <p>Veuillez agréer, Monsieur/Madame, l'expression de nos salutations distinguées.</p>
+                    </div>
+
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>L'Expéditeur</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
+                    </div>`;
                 break;
             case "ReceptionProvisoire":
                 bodyHTML = `
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
+                    </div>
+                    <div class="pv-document-title">
+                        <h2>DEMANDE DE RÉCEPTION PROVISOIRE</h2>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p><strong>${esc(d.lieuProjet || '_______________')}</strong>, le <strong>${formatAppDate(d.dateDemande)}</strong></p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:8px;">
+                        <p><strong>Objet :</strong> Demande de réception provisoire des travaux du projet <strong>« ${esc(d.nomProjet || '—')} »</strong></p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p>Monsieur le Maître d'ouvrage,</p>
+                        <p style="margin-top:8px;">Nous avons l'honneur de vous informer que les travaux relatifs au projet <strong>« ${esc(d.nomProjet || '—')} »</strong>, situé à <strong>${esc(d.lieuProjet || '—')}</strong>, ont été achevés conformément aux clauses du marché.</p>
+                        <p style="margin-top:8px;">En conséquence, nous vous prions de bien vouloir procéder à la <strong>réception provisoire</strong> des travaux réalisés.</p>
+                    </div>
+
+                    <h3>Informations du Projet</h3>
                     <table class="rapport-table">
-                        <tr><th>Référence</th><td>${esc(d.reference)}</td></tr>
-                        <tr><th>Date de la demande</th><td>${formatAppDate(d.dateDemande)}</td></tr>
+                        <tr><th>Nom du projet</th><td>${esc(d.nomProjet)}</td></tr>
                         <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
                         <tr><th>Entreprise réalisatrice</th><td>${esc(d.entreprise)}</td></tr>
-                        <tr><th>Désignation des travaux</th><td>${esc(d.designation)}</td></tr>
-                        <tr><th>Date début des travaux</th><td>${formatAppDate(d.dateDebut)}</td></tr>
-                        <tr><th>Date fin des travaux</th><td>${formatAppDate(d.dateFin)}</td></tr>
-                        <tr><th>Montant des travaux</th><td>${d.montant ? formatAppCurrency(parseFloat(d.montant)) : "—"}</td></tr>
+                        <tr><th>Lieu du projet</th><td>${esc(d.lieuProjet)}</td></tr>
+                        <tr><th>Date de début des travaux</th><td>${formatAppDate(d.dateDebut)}</td></tr>
+                        <tr><th>Date de fin prévue</th><td>${formatAppDate(d.dateFin)}</td></tr>
+                        <tr><th>Montant du marché</th><td>${d.montantMarche ? formatAppCurrency(parseFloat(d.montantMarche)) : '—'}</td></tr>
                     </table>
-                    ${d.reserves ? `<h3>Réserves éventuelles</h3><p class="rapport-text">${esc(d.reserves).replace(/\n/g, '<br>')}</p>` : ''}
-                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
-                    <div class="rapport-signatures">
-                        <div class="rapport-signature-block"><p>Le Maître d'ouvrage</p><div class="signature-line"></div></div>
-                        <div class="rapport-signature-block"><p>L'Entreprise</p><div class="signature-line"></div></div>
+
+                    ${d.observations ? `<h3>Observations</h3><div class="pv-formal-text"><p>${esc(d.observations).replace(/\n/g, '<br>')}</p></div>` : ''}
+
+                    <div class="pv-formal-text" style="margin-top:16px;">
+                        <p>Dans l'attente de votre suite favorable, veuillez agréer, Monsieur, l'expression de nos salutations distinguées.</p>
+                    </div>
+
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>L'Entreprise réalisatrice</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
                     </div>`;
                 break;
             case "ReceptionDefinitive":
                 bodyHTML = `
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
+                    </div>
+                    <div class="pv-document-title">
+                        <h2>DEMANDE DE RÉCEPTION DÉFINITIVE</h2>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p><strong>${esc(d.lieuProjet || '_______________')}</strong>, le <strong>${formatAppDate(d.dateDemande)}</strong></p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:8px;">
+                        <p><strong>Objet :</strong> Demande de réception définitive des travaux du projet <strong>« ${esc(d.nomProjet || '—')} »</strong></p>
+                    </div>
+
+                    <div class="pv-formal-text" style="margin-bottom:16px;">
+                        <p>Monsieur le Maître d'ouvrage,</p>
+                        <p style="margin-top:8px;">Suite à la réception provisoire${d.dateReceptionProvisoire ? ` prononcée le <strong>${formatAppDate(d.dateReceptionProvisoire)}</strong>` : ''} et à l'expiration du délai de garantie${d.dureeGarantie ? ` de <strong>${esc(d.dureeGarantie)} mois</strong>` : ''}, nous avons l'honneur de vous informer que l'ensemble des réserves émises ont été levées et que les ouvrages sont en parfait état.</p>
+                        <p style="margin-top:8px;">En conséquence, nous vous prions de bien vouloir procéder à la <strong>réception définitive</strong> des travaux du projet <strong>« ${esc(d.nomProjet || '—')} »</strong>, situé à <strong>${esc(d.lieuProjet || '—')}</strong>.</p>
+                    </div>
+
+                    <h3>Informations du Projet</h3>
                     <table class="rapport-table">
-                        <tr><th>Référence</th><td>${esc(d.reference)}</td></tr>
-                        <tr><th>Date de la demande</th><td>${formatAppDate(d.dateDemande)}</td></tr>
+                        <tr><th>Nom du projet</th><td>${esc(d.nomProjet)}</td></tr>
                         <tr><th>Maître d'ouvrage</th><td>${esc(d.maitreOuvrage)}</td></tr>
                         <tr><th>Entreprise réalisatrice</th><td>${esc(d.entreprise)}</td></tr>
-                        <tr><th>Désignation des travaux</th><td>${esc(d.designation)}</td></tr>
-                        <tr><th>Date de réception provisoire</th><td>${formatAppDate(d.dateReceptionProvisoire)}</td></tr>
-                        <tr><th>Durée de garantie</th><td>${d.dureeGarantie ? d.dureeGarantie + " mois" : "—"}</td></tr>
-                        <tr><th>Montant des travaux</th><td>${d.montant ? formatAppCurrency(parseFloat(d.montant)) : "—"}</td></tr>
-                        <tr><th>État des réserves</th><td>${esc(d.reservesLevees)}</td></tr>
+                        <tr><th>Lieu du projet</th><td>${esc(d.lieuProjet)}</td></tr>
+                        <tr><th>Date de fin prévue</th><td>${formatAppDate(d.dateFin)}</td></tr>
+                        <tr><th>Montant du marché</th><td>${d.montantMarche ? formatAppCurrency(parseFloat(d.montantMarche)) : '—'}</td></tr>
+                        ${d.dateReceptionProvisoire ? `<tr><th>Date de réception provisoire</th><td>${formatAppDate(d.dateReceptionProvisoire)}</td></tr>` : ''}
+                        ${d.dureeGarantie ? `<tr><th>Durée de garantie</th><td>${esc(d.dureeGarantie)} mois</td></tr>` : ''}
                     </table>
-                    ${d.observations ? `<h3>Observations</h3><p class="rapport-text">${esc(d.observations).replace(/\n/g, '<br>')}</p>` : ''}
-                    <div class="rapport-signatures">
-                        <div class="rapport-signature-block"><p>Le Maître d'ouvrage</p><div class="signature-line"></div></div>
-                        <div class="rapport-signature-block"><p>L'Entreprise</p><div class="signature-line"></div></div>
+
+                    <h3>État des Réserves</h3>
+                    <div class="pv-formal-text"><p>${esc(d.reservesLevees || 'Toutes les réserves ont été levées')}</p></div>
+
+                    ${d.observations ? `<h3>Observations</h3><div class="pv-formal-text"><p>${esc(d.observations).replace(/\n/g, '<br>')}</p></div>` : ''}
+
+                    <div class="pv-formal-text" style="margin-top:16px;">
+                        <p>Dans l'attente de votre suite favorable, veuillez agréer, Monsieur, l'expression de nos salutations distinguées.</p>
+                    </div>
+
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>L'Entreprise réalisatrice</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
                     </div>`;
                 break;
             case "Personnalise":
-                bodyHTML = `<div class="rapport-text">${esc(d.contenu || rapport.contenu || "").replace(/\n/g, '<br>')}</div>`;
+                bodyHTML = `
+                    <div class="pv-republic-header">
+                        <p class="pv-republic-title">RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE</p>
+                        <p class="pv-ministry">Ministère de l'Habitat, de l'Urbanisme et de la Ville</p>
+                    </div>
+                    <div class="pv-document-title">
+                        <h2>RAPPORT</h2>
+                    </div>
+                    <div class="pv-formal-text" style="white-space:pre-line;">
+                        <p>${esc(d.contenu || rapport.contenu || "").replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <div class="rapport-signatures" style="margin-top:30px;">
+                        <div class="rapport-signature-block"><p>Le Rédacteur</p><div class="signature-line"></div><span class="signature-hint">Signature & Cachet</span></div>
+                    </div>`;
                 break;
             default:
                 bodyHTML = `<p>${esc(rapport.contenu || "")}</p>`;
@@ -1776,6 +1961,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         $("rapportViewTitle").innerHTML = `<i class="fa-solid fa-eye"></i> ${esc(rapport.titre)}`;
         $("rapportPrintArea").innerHTML = generateRapportHTML(rapport);
+
+        // Show PDF button for all report types
+        const pdfBtn = $("downloadPdfBtn");
+        if (pdfBtn) {
+            pdfBtn.style.display = "";
+            pdfBtn.dataset.rapportId = rapport.id;
+        }
+
         modal.classList.add("active");
     }
 
@@ -1815,10 +2008,29 @@ document.addEventListener("DOMContentLoaded", () => {
         .rapport-courrier-body { padding: 20px 0; min-height: 200px; }
         .rapport-pj { margin-top: 16px; font-size: 11px; color: #6b7280; }
         .rapport-signatures { display: flex; justify-content: space-between; margin-top: 60px; gap: 40px; }
+        .rapport-signatures-3 { gap: 20px; }
         .rapport-signature-block { text-align: center; flex: 1; }
         .rapport-signature-block p { font-weight: 600; margin-bottom: 50px; font-size: 12px; }
-        .signature-line { border-top: 1px solid #9ca3af; width: 200px; margin: 0 auto; }
-        @@media print { body { padding: 15px 20px; } }
+        .signature-line { border-top: 1px solid #9ca3af; width: 180px; margin: 0 auto; }
+        .signature-hint { display: block; margin-top: 4px; font-size: 9px; color: #9ca3af; }
+
+        /* PV Professional Styles */
+        .pv-republic-header { text-align: center; margin-bottom: 8px; padding-top: 8px; }
+        .pv-republic-title { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: #1a1a2e; }
+        .pv-ministry { font-size: 10px; color: #6b7280; margin-top: 2px; }
+        .pv-document-title { text-align: center; margin: 16px 0; padding: 12px; border: 2px solid #1a1a2e; }
+        .pv-document-title h2 { font-size: 16px; font-weight: 700; color: #1a1a2e; letter-spacing: 1px; }
+        .pv-ref { font-size: 11px; color: #6b7280; margin-top: 4px; }
+        .pv-formal-text { font-size: 12px; color: #374151; line-height: 1.8; padding: 0 5px; }
+        .pv-formal-text p { margin-bottom: 8px; text-align: justify; }
+        .pv-commission-list { margin: 8px 0 8px 24px; list-style: disc; }
+        .pv-commission-list li { margin-bottom: 4px; font-size: 12px; }
+        .pv-lieu-date { text-align: right; margin-top: 30px; font-size: 12px; padding-right: 10px; }
+
+        @@media print {
+            body { padding: 15px 20px; }
+            .pv-document-title { border-width: 2px; }
+        }
     </style>
 </head>
 <body>${printArea.innerHTML}</body>
@@ -1828,9 +2040,68 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => { printWindow.print(); }, 300);
     });
 
-    // Delete rapport
-    async function deleteRapport(rapportId) {
-        if (!confirm("Êtes-vous sûr de vouloir supprimer ce rapport ?")) return;
+    // Download PDF for reception reports
+    $("downloadPdfBtn")?.addEventListener("click", async () => {
+        const btn = $("downloadPdfBtn");
+        const rapportId = btn?.dataset.rapportId;
+        if (!rapportId) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Génération...';
+
+        try {
+            const res = await fetch(`/api/rapports/${rapportId}/pdf`);
+            if (!res.ok) {
+                showToast("error", "Erreur PDF", "Impossible de générer le PDF");
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const disposition = res.headers.get("Content-Disposition") || "";
+            const match = disposition.match(/filename="?([^"]+)"?/);
+            a.download = match ? match[1] : `PV_${rapportId}.pdf`;
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast("success", "PDF généré", "Le document a été téléchargé");
+        } catch {
+            showToast("error", "Erreur", "Impossible de télécharger le PDF");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+
+    // Delete rapport – modal confirmation
+    let pendingDeleteRapportId = null;
+
+    function deleteRapport(rapportId) {
+        pendingDeleteRapportId = rapportId;
+        const rapport = cachedRapports.find(r => r.id === rapportId);
+        const nameEl = $("deleteRapportName");
+        if (nameEl) nameEl.textContent = rapport ? rapport.titre : `Rapport #${rapportId}`;
+        $("deleteRapportConfirmModal")?.classList.add("active");
+    }
+
+    function closeDeleteRapportModal() {
+        pendingDeleteRapportId = null;
+        $("deleteRapportConfirmModal")?.classList.remove("active");
+    }
+
+    $("closeDeleteRapportModal")?.addEventListener("click", closeDeleteRapportModal);
+    $("cancelDeleteRapportBtn")?.addEventListener("click", closeDeleteRapportModal);
+    $("deleteRapportConfirmModal")?.addEventListener("click", (e) => {
+        if (e.target.id === "deleteRapportConfirmModal") closeDeleteRapportModal();
+    });
+
+    $("confirmDeleteRapportBtn")?.addEventListener("click", async () => {
+        if (!pendingDeleteRapportId) return;
+        const rapportId = pendingDeleteRapportId;
+        closeDeleteRapportModal();
         const result = await api(`/api/rapports/${rapportId}`, { method: "DELETE" });
         if (result !== null) {
             showToast("success", "Rapport supprimé", "Le rapport a été supprimé");
@@ -1840,7 +2111,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             showToast("error", "Erreur", "Impossible de supprimer le rapport.");
         }
-    }
+    });
 
     // ===========================
     // RENDER USERS
@@ -2549,9 +2820,10 @@ document.addEventListener("DOMContentLoaded", () => {
             dateDebut: $("projectStartDate").value,
             dateFinPrevue: $("projectEndDate").value,
             budgetAlloue: parseFloat($("projectBudget").value) || 0,
-            propositionPrix: parseFloat($("projectPriceProposal")?.value) || null,
+            nombrePropositionsPrix: parseInt($("projectNombrePropositions")?.value) || null,
             localisation: getGeoLocalisation("projectWilaya", "projectDaira", "projectCommune"),
             maitreOuvrage: $("projectClient").value || null,
+            maitreOeuvre: $("projectMaitreOeuvre")?.value || null,
             chefProjetId: $("projectManager").value || null,
         };
         const result = await api("/api/projects", { method: "POST", body: JSON.stringify(body) });
@@ -2565,6 +2837,54 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         projectModal?.classList.remove("active");
     });
+
+    // Auto-calculate Caution (5% of Montant) for create modal
+    function updateProjectCaution() {
+        const montant = parseFloat($("projectBudget")?.value) || 0;
+        const cautionEl = $("projectCaution");
+        if (cautionEl) cautionEl.value = montant > 0 ? formatAppCurrency(montant * 0.05) : "";
+    }
+    $("projectBudget")?.addEventListener("input", updateProjectCaution);
+
+    // Auto-calculate Délai for create modal
+    function updateProjectDelai() {
+        const start = $("projectStartDate")?.value;
+        const end = $("projectEndDate")?.value;
+        const delaiEl = $("projectDelai");
+        if (!delaiEl) return;
+        if (start && end) {
+            const diff = Math.ceil((new Date(end) - new Date(start)) / 86400000);
+            delaiEl.value = diff > 0 ? diff + " jour(s)" : "";
+        } else {
+            delaiEl.value = "";
+        }
+    }
+    $("projectStartDate")?.addEventListener("change", updateProjectDelai);
+    $("projectEndDate")?.addEventListener("change", updateProjectDelai);
+
+    // Auto-calculate Caution (5% of Montant) for edit modal
+    function updateEditProjectCaution() {
+        const montant = parseFloat($("editProjectBudget")?.value) || 0;
+        const cautionEl = $("editProjectCaution");
+        if (cautionEl) cautionEl.value = montant > 0 ? formatAppCurrency(montant * 0.05) : "";
+    }
+    $("editProjectBudget")?.addEventListener("input", updateEditProjectCaution);
+
+    // Auto-calculate Délai for edit modal
+    function updateEditProjectDelai() {
+        const start = $("editProjectStartDate")?.value;
+        const end = $("editProjectEndDate")?.value;
+        const delaiEl = $("editProjectDelai");
+        if (!delaiEl) return;
+        if (start && end) {
+            const diff = Math.ceil((new Date(end) - new Date(start)) / 86400000);
+            delaiEl.value = diff > 0 ? diff + " jour(s)" : "";
+        } else {
+            delaiEl.value = "";
+        }
+    }
+    $("editProjectStartDate")?.addEventListener("change", updateEditProjectDelai);
+    $("editProjectEndDate")?.addEventListener("change", updateEditProjectDelai);
 
     $("saveTaskBtn")?.addEventListener("click", async () => {
         const body = {
@@ -2715,6 +3035,81 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleMenu("profile");
         });
     }
+
+    // Mon profil modal
+    document.addEventListener("click", (e) => {
+        const monProfilLink = e.target.closest('a.profile-item[href="#mon-profil"]');
+        if (monProfilLink) {
+            e.preventDefault();
+            closeAll();
+            openMyProfileModal();
+            return;
+        }
+    });
+
+    async function openMyProfileModal() {
+        const modal = $("myProfileModal");
+        if (!modal) return;
+
+        const body = $("myProfileBody");
+        body.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:var(--text-tertiary);"></i><p style="color:var(--text-tertiary);margin-top:8px;">Chargement...</p></div>';
+        modal.classList.add("active");
+
+        const user = await api("/api/dashboard/me");
+        if (!user) {
+            body.innerHTML = '<div style="text-align:center;padding:40px;"><p style="color:var(--color-red);">Impossible de charger le profil.</p></div>';
+            return;
+        }
+
+        const roleLabelsProfile = {
+            Gerant: "Gérant", CoGerant: "Co-Gérant", DirecteurTechnique: "Directeur Technique",
+            Ingenieur: "Ingénieur", Secretaire: "Secrétaire", Inconnu: "Non défini"
+        };
+        const roleColorsProfile = {
+            Gerant: "#e50908", CoGerant: "#f59e0b", DirecteurTechnique: "#3b82f6",
+            Ingenieur: "#10b981", Secretaire: "#8b5cf6", Inconnu: "#9ca3af"
+        };
+        const roleLabel = roleLabelsProfile[user.role] || user.role;
+        const roleColor = roleColorsProfile[user.role] || "#9ca3af";
+        const initials = (user.nomComplet || "?").split(" ").map(n => n[0]).join("").substring(0, 2);
+        const dateCreation = user.dateCreation ? formatAppDate(user.dateCreation, { day: "numeric", month: "long", year: "numeric" }) : "—";
+
+        body.innerHTML = `
+            <div class="my-profile-content">
+                <div class="my-profile-avatar" style="background:${roleColor}20;color:${roleColor};">${initials}</div>
+                <h3 class="my-profile-name">${esc(user.nomComplet)}</h3>
+                <span class="my-profile-role" style="background:${roleColor}15;color:${roleColor};">
+                    <i class="fa-solid fa-shield-halved"></i> ${esc(roleLabel)}
+                </span>
+                <div class="my-profile-details">
+                    <div class="my-profile-detail-row">
+                        <span class="my-profile-detail-label"><i class="fa-solid fa-user"></i> Nom</span>
+                        <span class="my-profile-detail-value">${esc(user.nom)}</span>
+                    </div>
+                    <div class="my-profile-detail-row">
+                        <span class="my-profile-detail-label"><i class="fa-solid fa-user"></i> Prénom</span>
+                        <span class="my-profile-detail-value">${esc(user.prenom)}</span>
+                    </div>
+                    <div class="my-profile-detail-row">
+                        <span class="my-profile-detail-label"><i class="fa-solid fa-envelope"></i> Email</span>
+                        <span class="my-profile-detail-value">${esc(user.email)}</span>
+                    </div>
+                    ${user.poste ? `<div class="my-profile-detail-row">
+                        <span class="my-profile-detail-label"><i class="fa-solid fa-briefcase"></i> Poste</span>
+                        <span class="my-profile-detail-value">${esc(user.poste)}</span>
+                    </div>` : ''}
+                    <div class="my-profile-detail-row">
+                        <span class="my-profile-detail-label"><i class="fa-solid fa-calendar"></i> Membre depuis</span>
+                        <span class="my-profile-detail-value">${dateCreation}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Close my profile modal
+    $("closeMyProfileModal")?.addEventListener("click", () => $("myProfileModal")?.classList.remove("active"));
+    $("myProfileModal")?.addEventListener("click", (e) => { if (e.target.id === "myProfileModal") $("myProfileModal").classList.remove("active"); });
 
     // Logout is handled by the <a href="/Logout"> link
 
@@ -2990,6 +3385,8 @@ document.addEventListener("DOMContentLoaded", () => {
         $("editProjectStartDate").value = p.dateDebut ? p.dateDebut.substring(0, 10) : '';
         $("editProjectEndDate").value = p.dateFinPrevue ? p.dateFinPrevue.substring(0, 10) : '';
         $("editProjectBudget").value = p.budgetAlloue;
+        if ($("editProjectNombrePropositions")) $("editProjectNombrePropositions").value = p.nombrePropositionsPrix || '';
+        if ($("editProjectMaitreOeuvre")) $("editProjectMaitreOeuvre").value = p.maitreOeuvre || '';
         setGeoFromLocalisation(p.localisation || '', "editProjectWilaya", "editProjectDaira", "editProjectCommune");
         $("editProjectStatus").value = p.statut;
 
@@ -3000,6 +3397,9 @@ document.addEventListener("DOMContentLoaded", () => {
         modal.dataset.description = p.description || '';
 
         modal.classList.add("active");
+
+        updateEditProjectCaution();
+        updateEditProjectDelai();
     }
 
     // --- MORE MENU ---
@@ -3119,8 +3519,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 dateDebut: $("editProjectStartDate").value,
                 dateFinPrevue: $("editProjectEndDate").value,
                 budgetAlloue: parseFloat($("editProjectBudget").value) || 0,
+                nombrePropositionsPrix: parseInt($("editProjectNombrePropositions")?.value) || null,
                 localisation: getGeoLocalisation("editProjectWilaya", "editProjectDaira", "editProjectCommune"),
                 maitreOuvrage: modal?.dataset.maitreOuvrage || null,
+                maitreOeuvre: $("editProjectMaitreOeuvre")?.value || null,
                 chefProjetId: modal?.dataset.chefProjetId || null,
                 avancement: parseInt(modal?.dataset.avancement) || 0,
             };
@@ -3180,7 +3582,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast("error", "Aucun projet", "Il n'y a aucun projet à exporter.");
             return;
         }
-        const headers = ["Nom", "Code", "Type", "Priorité", "Statut", "Date début", "Date fin prévue", "Budget alloué", "Avancement", "Localisation", "Maître d'ouvrage", "Chef de projet"];
+        const headers = ["Nom", "Code", "Type", "Priorité", "Statut", "Date de démarrage", "Date fin prévue", "Montant du projet", "Avancement", "Localisation", "Maître d'ouvrage", "Maître d'œuvre", "Chef de projet"];
         const rows = cachedProjects.map(p => [
             `"${(p.nom || '').replace(/"/g, '""')}"`,
             `"${(p.code || '').replace(/"/g, '""')}"`,
@@ -3231,9 +3633,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         dateDebut: p.dateDebut || p.DateDebut || new Date().toISOString(),
                         dateFinPrevue: p.dateFinPrevue || p.DateFinPrevue || new Date().toISOString(),
                         budgetAlloue: parseFloat(p.budgetAlloue || p.BudgetAlloue || 0),
-                        propositionPrix: p.propositionPrix || p.PropositionPrix || null,
+                        nombrePropositionsPrix: parseInt(p.nombrePropositionsPrix || p.NombrePropositionsPrix || 0) || null,
                         localisation: p.localisation || p.Localisation || null,
                         maitreOuvrage: p.maitreOuvrage || p.MaitreOuvrage || null,
+                        maitreOeuvre: p.maitreOeuvre || p.MaitreOeuvre || null,
                         chefProjetId: p.chefProjetId || p.ChefProjetId || null,
                     };
                     if (!body.nom) continue;
@@ -3319,13 +3722,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.dateFinPrevue) $("projectEndDate").value = data.dateFinPrevue;
         if (data.budgetAlloue) $("projectBudget").value = data.budgetAlloue;
         if (data.propositionPrix) {
-            const ppEl = $("projectPriceProposal");
-            if (ppEl) ppEl.value = data.propositionPrix;
+            const npEl = $("projectNombrePropositions");
+            if (npEl) npEl.value = data.propositionPrix;
+        }
+        if (data.nombrePropositionsPrix) {
+            const npEl = $("projectNombrePropositions");
+            if (npEl) npEl.value = data.nombrePropositionsPrix;
         }
         if (data.localisation) {
             setGeoFromLocalisation(data.localisation, "projectWilaya", "projectDaira", "projectCommune");
         }
         if (data.maitreOuvrage) $("projectClient").value = data.maitreOuvrage;
+        if (data.maitreOeuvre) {
+            const moEl = $("projectMaitreOeuvre");
+            if (moEl) moEl.value = data.maitreOeuvre;
+        }
+
+        // Trigger auto-calculations
+        updateProjectCaution();
+        updateProjectDelai();
 
         // Highlight missing required fields
         highlightMissingFields(data);

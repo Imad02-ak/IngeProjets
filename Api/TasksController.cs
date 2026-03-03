@@ -1,4 +1,4 @@
-using IngeProjets.Api.Dtos;
+Ôªøusing IngeProjets.Api.Dtos;
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
 using IngeProjets.Services;
@@ -78,6 +78,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireTechnique")]
     public async Task<IActionResult> Create([FromBody] CreateTacheRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -87,7 +88,7 @@ public class TasksController : ControllerBase
             return BadRequest("Projet introuvable.");
 
         if (!Enum.TryParse<Priorite>(request.Priorite, true, out var priorite))
-            return BadRequest("PrioritÈ invalide.");
+            return BadRequest("Priorit√© invalide.");
 
         var tache = new Tache
         {
@@ -116,6 +117,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "RequireTechnique")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateTacheRequest request, CancellationToken cancellationToken)
     {
         var tache = await _context.Taches.FindAsync([id], cancellationToken);
@@ -126,7 +128,7 @@ public class TasksController : ControllerBase
             return BadRequest(ModelState);
 
         if (!Enum.TryParse<Priorite>(request.Priorite, true, out var priorite))
-            return BadRequest("PrioritÈ invalide.");
+            return BadRequest("Priorit√© invalide.");
 
         if (!Enum.TryParse<StatutTache>(request.Statut, true, out var statut))
             return BadRequest("Statut invalide.");
@@ -155,13 +157,13 @@ public class TasksController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Cascade delay to dependent tasks (Fin -> DÈbut)
+        // Cascade delay to dependent tasks (Fin ‚Üí D√©but)
         if (request.DateEcheance != oldEcheance)
         {
-            var delay = (request.DateEcheance - oldEcheance).TotalDays;
-            if (delay > 0)
+            var delayDays = (int)(request.DateEcheance - oldEcheance).TotalDays;
+            if (delayDays != 0)
             {
-                await CascadeDependencyDelayAsync(tache.Id, (int)delay, cancellationToken);
+                await CascadeDependencyDelayAsync(tache.Id, delayDays, cancellationToken);
             }
         }
 
@@ -171,6 +173,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
+    [Authorize(Policy = "RequireTechnique")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateTacheStatusRequest request, CancellationToken cancellationToken)
     {
         var tache = await _context.Taches.FindAsync([id], cancellationToken);
@@ -230,7 +233,7 @@ public class TasksController : ControllerBase
                         t.Phase,
                         t.DependanceId,
                         t.AssigneAId,
-                        AssigneNomComplet = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assignÈ"
+                        AssigneNomComplet = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assign√©"
                     })
             })
             .ToListAsync(cancellationToken);
@@ -335,7 +338,7 @@ public class TasksController : ControllerBase
                 t.Progression,
                 t.Statut,
                 Projet = t.Projet.Nom,
-                AssigneA = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assignÈ",
+                AssigneA = t.AssigneA != null ? t.AssigneA.NomComplet : "Non assign√©",
                 JoursRetard = (int)(now - t.DateEcheance).TotalDays
             })
             .ToListAsync(cancellationToken);
@@ -356,9 +359,12 @@ public class TasksController : ControllerBase
                 dep.DateDebut = dep.DateDebut.Value.AddDays(delayDays);
             dep.DateEcheance = dep.DateEcheance.AddDays(delayDays);
 
-            await _context.SaveChangesAsync(cancellationToken);
+            // Recurse before saving so all changes are batched
             await CascadeDependencyDelayAsync(dep.Id, delayDays, cancellationToken);
         }
+
+        if (dependants.Count > 0)
+            await _context.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>Archives a single task.</summary>
@@ -371,7 +377,7 @@ public class TasksController : ControllerBase
             return NotFound();
 
         if (tache.EstArchive)
-            return BadRequest("Cette t‚che est dÈj‡ archivÈe.");
+            return BadRequest("Cette t√¢che est d√©j√† archiv√©e.");
 
         tache.EstArchive = true;
         tache.DateArchivage = DateTime.UtcNow;
@@ -379,7 +385,7 @@ public class TasksController : ControllerBase
 
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
-        return Ok(new { tache.Id, tache.Titre, Message = "T‚che archivÈe avec succËs" });
+        return Ok(new { tache.Id, tache.Titre, Message = "T√¢che archiv√©e avec succ√®s" });
     }
 
     /// <summary>Restores an archived task.</summary>
@@ -392,7 +398,7 @@ public class TasksController : ControllerBase
             return NotFound();
 
         if (!tache.EstArchive)
-            return BadRequest("Cette t‚che n'est pas archivÈe.");
+            return BadRequest("Cette t√¢che n'est pas archiv√©e.");
 
         tache.EstArchive = false;
         tache.DateArchivage = null;
@@ -400,7 +406,7 @@ public class TasksController : ControllerBase
 
         await _progressionService.RecalculerAvancementAsync(tache.ProjetId, cancellationToken);
 
-        return Ok(new { tache.Id, tache.Titre, Message = "T‚che restaurÈe avec succËs" });
+        return Ok(new { tache.Id, tache.Titre, Message = "T√¢che restaur√©e avec succ√®s" });
     }
 
     [HttpDelete("{id}")]

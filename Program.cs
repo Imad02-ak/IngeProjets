@@ -3,6 +3,9 @@ using IngeProjets.Data.Models;
 using IngeProjets.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,12 +16,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // --- ASP.NET Core Identity ---
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    // Mot de passe
+    // Mot de passe : minimum 8 caractères, majuscule, chiffre, caractère spécial
     options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
+    options.Password.RequiredUniqueChars = 4;
 
     // Verrouillage du compte
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
@@ -37,15 +41,19 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Login";
     options.LogoutPath = "/Logout";
     options.AccessDeniedPath = "/AccessDenied";
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
     options.SlidingExpiration = true;
     options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
     options.Cookie.IsEssential = true;
+    options.Cookie.Name = "IngeProjets.Auth";
 });
 
 // --- Authorization Policies (Rôles / Policies) ---
 builder.Services.AddAuthorization(options =>
 {
+    // --- Policies par rôle individuel ---
     options.AddPolicy("RequireGerant", policy =>
         policy.RequireRole("Gerant"));
 
@@ -61,11 +69,43 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireSecretaire", policy =>
         policy.RequireRole("Secretaire"));
 
+    // --- Policies fonctionnelles ---
+
+    // Direction + DirecteurTechnique : gestion projets, archivage tâches
     options.AddPolicy("RequireEncadrement", policy =>
         policy.RequireRole("Gerant", "CoGerant", "DirecteurTechnique"));
 
     options.AddPolicy("RequireAuthenticated", policy =>
         policy.RequireAuthenticatedUser());
+
+    // Création/modification de tâches : encadrement + ingénieur
+    options.AddPolicy("RequireTechnique", policy =>
+        policy.RequireRole("Gerant", "CoGerant", "DirecteurTechnique", "Ingenieur"));
+
+    // Gestion financière (montants, devis, situations, factures)
+    options.AddPolicy("RequireGestionFinanciere", policy =>
+        policy.RequireRole("Gerant", "CoGerant", "DirecteurTechnique", "Secretaire"));
+
+    // Création/gestion de rapports et documents
+    options.AddPolicy("RequireRapports", policy =>
+        policy.RequireRole("Gerant", "CoGerant", "DirecteurTechnique", "Secretaire"));
+
+    // Archives : uniquement direction
+    options.AddPolicy("RequireArchives", policy =>
+        policy.RequireRole("Gerant", "CoGerant"));
+
+    // Gestion utilisateurs : uniquement direction
+    options.AddPolicy("RequireGestionUtilisateurs", policy =>
+        policy.RequireRole("Gerant", "CoGerant"));
+});
+
+// --- Anti-forgery (CSRF) ---
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
 // --- Razor Pages ---
@@ -76,11 +116,13 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Register");
     options.Conventions.AllowAnonymousToPage("/AccessDenied");
     options.Conventions.AllowAnonymousToPage("/Logout");
+    options.Conventions.AllowAnonymousToPage("/Index");
 });
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<ProjetProgressionService>();
 builder.Services.AddScoped<ProjectMontantService>();
+builder.Services.AddScoped<PvPdfService>();
 
 var app = builder.Build();
 
@@ -99,6 +141,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// --- Security headers ---
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
+
 app.UseStaticFiles();
 
 app.UseRouting();

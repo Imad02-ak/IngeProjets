@@ -38,10 +38,11 @@ public class ProjectsController : ControllerBase
                 p.DateFinPrevue,
                 p.DateFinReelle,
                 p.BudgetAlloue,
-                p.PropositionPrix,
+                p.NombrePropositionsPrix,
                 p.Avancement,
                 p.Localisation,
                 p.MaitreOuvrage,
+                p.MaitreOeuvre,
                 p.ChefProjet != null ? p.ChefProjet.NomComplet : null,
                 p.ChefProjetId,
                 p.DateCreation))
@@ -68,10 +69,11 @@ public class ProjectsController : ControllerBase
                 p.DateFinPrevue,
                 p.DateFinReelle,
                 p.BudgetAlloue,
-                p.PropositionPrix,
+                p.NombrePropositionsPrix,
                 p.Avancement,
                 p.Localisation,
                 p.MaitreOuvrage,
+                p.MaitreOeuvre,
                 p.ChefProjet != null ? p.ChefProjet.NomComplet : null,
                 p.ChefProjetId,
                 p.DateCreation,
@@ -128,9 +130,10 @@ public class ProjectsController : ControllerBase
             DateDebut = request.DateDebut,
             DateFinPrevue = request.DateFinPrevue,
             BudgetAlloue = request.BudgetAlloue,
-            PropositionPrix = request.PropositionPrix,
+            NombrePropositionsPrix = request.NombrePropositionsPrix,
             Localisation = request.Localisation,
             MaitreOuvrage = request.MaitreOuvrage,
+            MaitreOeuvre = request.MaitreOeuvre,
             ChefProjetId = request.ChefProjetId,
             DateCreation = DateTime.UtcNow
         };
@@ -170,9 +173,10 @@ public class ProjectsController : ControllerBase
         projet.DateDebut = request.DateDebut;
         projet.DateFinPrevue = request.DateFinPrevue;
         projet.BudgetAlloue = request.BudgetAlloue;
-        projet.PropositionPrix = request.PropositionPrix;
+        projet.NombrePropositionsPrix = request.NombrePropositionsPrix;
         projet.Localisation = request.Localisation;
         projet.MaitreOuvrage = request.MaitreOuvrage;
+        projet.MaitreOeuvre = request.MaitreOeuvre;
         projet.ChefProjetId = request.ChefProjetId;
         projet.Avancement = request.Avancement;
         projet.DateModification = DateTime.UtcNow;
@@ -276,7 +280,7 @@ public class ProjectsController : ControllerBase
             .FirstOrDefaultAsync(cancellationToken);
 
         var depensesTotales = await _context.TransactionsBudget
-            .Where(t => t.Type == TypeTransaction.Depense)
+            .Where(t => t.Type == TypeTransaction.Depense && !t.Projet.EstArchive)
             .SumAsync(t => t.Montant, cancellationToken);
 
         var parType = await _context.Projets

@@ -48,7 +48,13 @@ public sealed class ProjetProgressionService
             if (stats.AllTerminee)
             {
                 projet.Statut = StatutProjet.Termine;
-                projet.DateFinReelle = DateTime.UtcNow;
+                projet.DateFinReelle ??= DateTime.UtcNow;
+            }
+            else if (projet.Statut == StatutProjet.Termine)
+            {
+                // Tasks are no longer all complete — revert from Termine
+                projet.Statut = StatutProjet.EnCours;
+                projet.DateFinReelle = null;
             }
             else if (stats.AnyActive && projet.Statut == StatutProjet.EnPlanification)
             {
@@ -56,7 +62,9 @@ public sealed class ProjetProgressionService
             }
         }
 
-        if (projet.DateFinPrevue < DateTime.UtcNow && projet.Statut != StatutProjet.Termine)
+        // Only auto-flag EnRetard for projects that are actively running
+        if (projet.DateFinPrevue < DateTime.UtcNow
+            && projet.Statut is StatutProjet.EnCours or StatutProjet.EnPlanification)
         {
             projet.Statut = StatutProjet.EnRetard;
         }

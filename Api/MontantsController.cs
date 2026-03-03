@@ -9,7 +9,7 @@ namespace IngeProjets.Api;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireGestionFinanciere")]
 public class MontantsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

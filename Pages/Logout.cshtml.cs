@@ -8,21 +8,26 @@ namespace IngeProjets.Pages
     public class LogoutModel : PageModel
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly ILogger<LogoutModel> _logger;
 
-        public LogoutModel(SignInManager<ApplicationUser> signInManager)
+        public LogoutModel(
+            SignInManager<ApplicationUser> signInManager,
+            ILogger<LogoutModel> logger)
         {
             _signInManager = signInManager;
+            _logger = logger;
         }
 
-        public async Task<IActionResult> OnGetAsync()
+        public IActionResult OnGet()
         {
-            await _signInManager.SignOutAsync();
             return RedirectToPage("/Login");
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            var email = User.Identity?.Name;
             await _signInManager.SignOutAsync();
+            _logger.LogInformation("Utilisateur d\u00e9connect\u00e9 : {Email}", email);
             return RedirectToPage("/Login");
         }
     }

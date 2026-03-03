@@ -29,9 +29,9 @@ public class Projet
     [Display(Name = "Statut")]
     public StatutProjet Statut { get; set; } = StatutProjet.EnPlanification;
 
-    [Required(ErrorMessage = "La date de début est requise.")]
+    [Required(ErrorMessage = "La date de démarrage est requise.")]
     [DataType(DataType.Date)]
-    [Display(Name = "Date de début")]
+    [Display(Name = "Date de démarrage")]
     public DateTime DateDebut { get; set; }
 
     [Required(ErrorMessage = "La date de fin prévue est requise.")]
@@ -43,15 +43,15 @@ public class Projet
     [Display(Name = "Date de fin réelle")]
     public DateTime? DateFinReelle { get; set; }
 
-    [Required(ErrorMessage = "Le budget est requis.")]
+    [Required(ErrorMessage = "Le montant du projet est requis.")]
     [Column(TypeName = "decimal(18,2)")]
-    [Range(0, double.MaxValue, ErrorMessage = "Le budget doit être positif.")]
-    [Display(Name = "Budget alloué (€)")]
+    [Range(0, double.MaxValue, ErrorMessage = "Le montant doit être positif.")]
+    [Display(Name = "Montant du projet (€)")]
     public decimal BudgetAlloue { get; set; }
 
-    [Column(TypeName = "decimal(18,2)")]
-    [Display(Name = "Proposition des prix (€)")]
-    public decimal? PropositionPrix { get; set; }
+    [Range(0, int.MaxValue, ErrorMessage = "Le nombre de propositions des prix doit être positif.")]
+    [Display(Name = "Nombre des propositions des prix")]
+    public int? NombrePropositionsPrix { get; set; }
 
     [Range(0, 100)]
     [Display(Name = "Avancement (%)")]
@@ -63,6 +63,10 @@ public class Projet
     [StringLength(200)]
     [Display(Name = "Maître de l'ouvrage")]
     public string? MaitreOuvrage { get; set; }
+
+    [StringLength(200)]
+    [Display(Name = "Maître d'œuvre")]
+    public string? MaitreOeuvre { get; set; }
 
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
     public DateTime? DateModification { get; set; }

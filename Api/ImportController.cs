@@ -148,10 +148,12 @@ public class ImportController : ControllerBase
             var s when s.Contains("echeance") || s.Contains("deadline") => "dateFinPrevue",
             var s when s.Contains("budget") && s.Contains("alloue") => "budgetAlloue",
             var s when s.Contains("budget") => "budgetAlloue",
-            var s when s.Contains("proposition") && s.Contains("prix") => "propositionPrix",
+            var s when s.Contains("proposition") && s.Contains("prix") => "nombrePropositionsPrix",
+            var s when s.Contains("nombre") && s.Contains("proposition") => "nombrePropositionsPrix",
             var s when s.Contains("localisation") || s.Contains("lieu") || s.Contains("location") || s.Contains("adresse") => "localisation",
             var s when s.Contains("wilaya") => "localisation",
             var s when s.Contains("maitre") && s.Contains("ouvrage") => "maitreOuvrage",
+            var s when s.Contains("maitre") && s.Contains("oeuvre") => "maitreOeuvre",
             var s when s.Contains("client") || s.Contains("donneur") => "maitreOuvrage",
             _ => ""
         };
@@ -187,6 +189,18 @@ public class ImportController : ControllerBase
             return null;
         }
 
+        int? ParseInt(string key)
+        {
+            var text = GetCell(key).Replace(" ", "");
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            if (int.TryParse(text, out var val)) return val;
+            // Fall back: if a decimal was entered, truncate
+            if (decimal.TryParse(text, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var dec))
+                return (int)dec;
+            return null;
+        }
+
         return new ImportedProjectData
         {
             Nom = GetCell("nom"),
@@ -197,9 +211,10 @@ public class ImportController : ControllerBase
             DateDebut = ParseDate("dateDebut")?.ToString("yyyy-MM-dd"),
             DateFinPrevue = ParseDate("dateFinPrevue")?.ToString("yyyy-MM-dd"),
             BudgetAlloue = ParseDecimal("budgetAlloue"),
-            PropositionPrix = ParseDecimal("propositionPrix"),
+            NombrePropositionsPrix = ParseInt("nombrePropositionsPrix"),
             Localisation = GetCell("localisation"),
             MaitreOuvrage = GetCell("maitreOuvrage"),
+            MaitreOeuvre = GetCell("maitreOeuvre"),
         };
     }
 
@@ -259,9 +274,10 @@ public class ImportController : ControllerBase
             DateDebut = DateTime.Parse(data.DateDebut!),
             DateFinPrevue = DateTime.Parse(data.DateFinPrevue!),
             BudgetAlloue = data.BudgetAlloue ?? 0,
-            PropositionPrix = data.PropositionPrix,
+            NombrePropositionsPrix = data.NombrePropositionsPrix,
             Localisation = string.IsNullOrWhiteSpace(data.Localisation) ? null : data.Localisation,
             MaitreOuvrage = string.IsNullOrWhiteSpace(data.MaitreOuvrage) ? null : data.MaitreOuvrage,
+            MaitreOeuvre = string.IsNullOrWhiteSpace(data.MaitreOeuvre) ? null : data.MaitreOeuvre,
             DateCreation = DateTime.UtcNow,
         };
     }
@@ -277,9 +293,10 @@ public sealed class ImportedProjectData
     public string? DateDebut { get; set; }
     public string? DateFinPrevue { get; set; }
     public decimal? BudgetAlloue { get; set; }
-    public decimal? PropositionPrix { get; set; }
+    public int? NombrePropositionsPrix { get; set; }
     public string? Localisation { get; set; }
     public string? MaitreOuvrage { get; set; }
+    public string? MaitreOeuvre { get; set; }
 }
 
 public sealed class ImportedProjectResult

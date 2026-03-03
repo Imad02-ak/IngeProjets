@@ -8,7 +8,7 @@ namespace IngeProjets.Api;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireArchives")]
 public class ArchivesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

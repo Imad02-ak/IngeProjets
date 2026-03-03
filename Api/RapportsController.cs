@@ -1,5 +1,6 @@
 using IngeProjets.Data;
 using IngeProjets.Data.Models;
+using IngeProjets.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,13 +15,16 @@ public class RapportsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly PvPdfService _pvPdfService;
 
     public RapportsController(
         ApplicationDbContext context,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        PvPdfService pvPdfService)
     {
         _context = context;
         _userManager = userManager;
+        _pvPdfService = pvPdfService;
     }
 
     /// <summary>
@@ -85,6 +89,7 @@ public class RapportsController : ControllerBase
     /// Creates a new rapport.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Create([FromBody] CreateRapportRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -130,6 +135,7 @@ public class RapportsController : ControllerBase
     /// Archives a rapport.
     /// </summary>
     [HttpPost("{id}/archive")]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Archive(int id, CancellationToken cancellationToken)
     {
         var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
@@ -150,6 +156,7 @@ public class RapportsController : ControllerBase
     /// Restores an archived rapport.
     /// </summary>
     [HttpPost("{id}/restore")]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
     {
         var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
@@ -170,6 +177,7 @@ public class RapportsController : ControllerBase
     /// Deletes a rapport.
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireArchives")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
@@ -180,6 +188,22 @@ public class RapportsController : ControllerBase
         await _context.SaveChangesAsync(cancellationToken);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Generates and downloads a PDF for any rapport type.
+    /// </summary>
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> DownloadPdf(int id, CancellationToken cancellationToken)
+    {
+        var rapport = await _context.Rapports.FindAsync([id], cancellationToken);
+        if (rapport is null)
+            return NotFound();
+
+        var pdf = _pvPdfService.GeneratePdf(rapport);
+        var fileName = $"Rapport_{rapport.Type}_{rapport.Id}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+
+        return File(pdf, "application/pdf", fileName);
     }
 }
 

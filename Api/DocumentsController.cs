@@ -61,6 +61,7 @@ public class DocumentsController : ControllerBase
     /// </summary>
     [HttpPost]
     [RequestSizeLimit(MaxFileSize)]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Upload(int projetId, IFormFile file, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -145,6 +146,7 @@ public class DocumentsController : ControllerBase
     /// Archives a project document.
     /// </summary>
     [HttpPost("{docId}/archive")]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Archive(int projetId, int docId, CancellationToken cancellationToken)
     {
         var doc = await _context.Documents
@@ -167,6 +169,7 @@ public class DocumentsController : ControllerBase
     /// Restores an archived document.
     /// </summary>
     [HttpPost("{docId}/restore")]
+    [Authorize(Policy = "RequireRapports")]
     public async Task<IActionResult> Restore(int projetId, int docId, CancellationToken cancellationToken)
     {
         var doc = await _context.Documents
@@ -189,6 +192,7 @@ public class DocumentsController : ControllerBase
     /// Deletes a project document.
     /// </summary>
     [HttpDelete("{docId}")]
+    [Authorize(Policy = "RequireArchives")]
     public async Task<IActionResult> Delete(int projetId, int docId, CancellationToken cancellationToken)
     {
         var doc = await _context.Documents

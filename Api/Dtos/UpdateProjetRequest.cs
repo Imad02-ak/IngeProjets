@@ -21,25 +21,28 @@ public sealed class UpdateProjetRequest
     public string Priorite { get; init; } = "Moyenne";
     public string Statut { get; init; } = "EnPlanification";
 
-    [Required(ErrorMessage = "La date de début est requise.")]
+    [Required(ErrorMessage = "La date de démarrage est requise.")]
     public DateTime DateDebut { get; init; }
 
     [Required(ErrorMessage = "La date de fin prévue est requise.")]
-    [DateGreaterThan(nameof(DateDebut), ErrorMessage = "La date de fin prévue doit être postérieure à la date de début.")]
+    [DateGreaterThan(nameof(DateDebut), ErrorMessage = "La date de fin prévue doit être postérieure à la date de démarrage.")]
     public DateTime DateFinPrevue { get; init; }
 
-    [Required(ErrorMessage = "Le budget est requis.")]
-    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Le budget doit être positif.")]
+    [Required(ErrorMessage = "Le montant du projet est requis.")]
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Le montant doit être positif.")]
     public decimal BudgetAlloue { get; init; }
 
-    [Range(0, (double)decimal.MaxValue, ErrorMessage = "La proposition de prix doit être positive.")]
-    public decimal? PropositionPrix { get; init; }
+    [Range(0, int.MaxValue, ErrorMessage = "Le nombre de propositions des prix doit être positif.")]
+    public int? NombrePropositionsPrix { get; init; }
 
     [StringLength(300, ErrorMessage = "La localisation ne doit pas dépasser 300 caractères.")]
     public string? Localisation { get; init; }
 
     [StringLength(200, ErrorMessage = "Le maître d'ouvrage ne doit pas dépasser 200 caractères.")]
     public string? MaitreOuvrage { get; init; }
+
+    [StringLength(200, ErrorMessage = "Le maître d'œuvre ne doit pas dépasser 200 caractères.")]
+    public string? MaitreOeuvre { get; init; }
 
     public string? ChefProjetId { get; init; }
 

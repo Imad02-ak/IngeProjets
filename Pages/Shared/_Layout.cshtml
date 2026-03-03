@@ -8,6 +8,18 @@
     var userRole = roles.FirstOrDefault() ?? "Utilisateur";
     var userName = user?.NomComplet ?? "Utilisateur";
     var userPrenom = user?.Prenom ?? "";
+
+    // Role-based permission flags
+    var isGerant = userRole == "Gerant";
+    var isCoGerant = userRole == "CoGerant";
+    var isDirecteur = userRole == "DirecteurTechnique";
+    var isIngenieur = userRole == "Ingenieur";
+    var isSecretaire = userRole == "Secretaire";
+    var isDirection = isGerant || isCoGerant;
+    var isEncadrement = isDirection || isDirecteur;
+    var canSeeBudgets = isEncadrement || isSecretaire;
+    var canSeeArchives = isDirection;
+    var canSeeUtilisateurs = isDirection;
 }
 <!doctype html>
 <html lang="fr">
@@ -45,7 +57,7 @@
     <script src="~/js/montant.js" defer asp-append-version="true"></script>
 </head>
 
-<body>
+<body data-user-role="@userRole">
     <div class="app">
         <!-- SIDEBAR -->
         <aside class="sidebar">
@@ -76,22 +88,31 @@
                     </div>
                     <span class="nav-text">Planning</span>
                 </a>
+                @if (canSeeBudgets)
+                {
                 <a href="#budgets" class="nav-item" data-page="budgets">
                     <div class="nav-icon"><i class="fa-solid fa-sack-dollar"></i></div>
                     <span class="nav-text">Montants</span>
                 </a>
+                }
                 <a href="#rapports" class="nav-item" data-page="rapports">
                     <div class="nav-icon"><i class="fa-solid fa-chart-bar"></i></div>
                     <span class="nav-text">Rapports</span>
                 </a>
+                @if (canSeeArchives)
+                {
                 <a href="#archives" class="nav-item" data-page="archives">
                     <div class="nav-icon"><i class="fa-solid fa-box-archive"></i></div>
                     <span class="nav-text">Archives</span>
                 </a>
+                }
+                @if (canSeeUtilisateurs)
+                {
                 <a href="#utilisateurs" class="nav-item" data-page="utilisateurs">
                     <div class="nav-icon"><i class="fa-solid fa-users"></i></div>
                     <span class="nav-text">Utilisateurs</span>
                 </a>
+                }
                 <a href="#parametres" class="nav-item" data-page="parametres">
                     <div class="nav-icon"><i class="fa-solid fa-gear"></i></div>
                     <span class="nav-text">Paramètres</span>
@@ -264,10 +285,12 @@
                                     </a>
                                 </div>
 
-                                <a href="/Logout" class="profile-logout" id="logoutBtn">
-                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                                    Déconnexion
-                                </a>
+                                <form asp-page="/Logout" method="post" id="logoutForm" style="margin:0;">
+                                    <button type="submit" class="profile-logout" id="logoutBtn">
+                                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                        Déconnexion
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -414,6 +437,8 @@
                             </p>
                         </div>
                         <div class="page-header-actions">
+                            @if (isEncadrement)
+                            {
                             <button class="btn btn-outline" id="exportProjectsBtn">
                                 <i class="fa-solid fa-download"></i> Exporter
                             </button>
@@ -424,6 +449,7 @@
                             <button class="btn btn-primary" id="newProjectBtn">
                                 <i class="fa-solid fa-plus"></i> Nouveau Projet
                             </button>
+                            }
                         </div>
                     </div>
 
@@ -569,9 +595,12 @@
                             <button class="btn btn-outline" id="syncCalendarBtn">
                                 <i class="fa-solid fa-sync"></i> Synchroniser
                             </button>
+                            @if (isEncadrement || isIngenieur)
+                            {
                             <button class="btn btn-primary" id="newTaskBtn">
                                 <i class="fa-solid fa-plus"></i> Nouvelle Tâche
                             </button>
+                            }
                         </div>
                     </div>
 
@@ -2142,7 +2171,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Date de début *</label>
+                            <label class="form-label">Date de démarrage *</label>
                             <input type="date"
                                    class="form-input"
                                    id="projectStartDate"
@@ -2158,7 +2187,23 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Budget alloué (€) *</label>
+                            <label class="form-label">Délai</label>
+                            <input type="text"
+                                   class="form-input"
+                                   id="projectDelai"
+                                   readonly
+                                   placeholder="Calculé automatiquement" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Chef de projet</label>
+                            <select class="form-select" id="projectManager">
+                                <option value="">Sélectionner...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Montant du projet (DA) *</label>
                             <input type="number"
                                    class="form-input"
                                    id="projectBudget"
@@ -2166,10 +2211,12 @@
                                    placeholder="Ex: 1500000" />
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Chef de projet</label>
-                            <select class="form-select" id="projectManager">
-                                <option value="">Sélectionner...</option>
-                            </select>
+                            <label class="form-label">Caution (5%)</label>
+                            <input type="text"
+                                   class="form-input"
+                                   id="projectCaution"
+                                   readonly
+                                   placeholder="Calculé automatiquement" />
                         </div>
                     </div>
                     <div class="form-row">
@@ -2198,15 +2245,23 @@
                             <input type="text"
                                    class="form-input"
                                    id="projectClient"
-                                   placeholder="Ex: Commune de Paris" />
+                                   placeholder="Ex: Wilaya de Constantine" />
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Proposition des prix (€)</label>
-                            <input type="number"
+                            <label class="form-label">Maître d'œuvre</label>
+                            <input type="text"
                                    class="form-input"
-                                   id="projectPriceProposal"
-                                   placeholder="Ex: 2000000" />
+                                   id="projectMaitreOeuvre"
+                                   placeholder="Ex: Bureau d'études ABC" />
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nombre des propositions des prix</label>
+                        <input type="number"
+                               class="form-input"
+                               id="projectNombrePropositions"
+                               min="0"
+                               placeholder="Ex: 3" />
                     </div>
                 </form>
             </div>
@@ -2542,18 +2597,38 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Budget alloué (€) *</label>
+                            <label class="form-label">Montant du projet (DA) *</label>
                             <input type="number" class="form-input" id="editProjectBudget" required />
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Date de début *</label>
+                            <label class="form-label">Caution (5%)</label>
+                            <input type="text" class="form-input" id="editProjectCaution" readonly placeholder="Calculé automatiquement" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nombre des propositions des prix</label>
+                            <input type="number" class="form-input" id="editProjectNombrePropositions" min="0" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Date de démarrage *</label>
                             <input type="date" class="form-input" id="editProjectStartDate" required />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Date de fin prévue *</label>
                             <input type="date" class="form-input" id="editProjectEndDate" required />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Délai</label>
+                            <input type="text" class="form-input" id="editProjectDelai" readonly placeholder="Calculé automatiquement" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Maître d'œuvre</label>
+                            <input type="text" class="form-input" id="editProjectMaitreOeuvre" placeholder="Ex: Bureau d'études ABC" />
                         </div>
                     </div>
                     <div class="form-row">
@@ -2733,8 +2808,42 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" id="closeRapportViewBtn">Fermer</button>
+                <button class="btn btn-primary" id="downloadPdfBtn" style="display:none;">
+                    <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+                </button>
                 <button class="btn btn-primary" id="printRapportBtn">
                     <i class="fa-solid fa-print"></i> Imprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmation Suppression Rapport -->
+    <div class="modal-overlay" id="deleteRapportConfirmModal">
+        <div class="modal modal-sm">
+            <div class="modal-header modal-header--danger">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Confirmer la suppression
+                </h2>
+                <button class="modal-close" id="closeDeleteRapportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="delete-confirm-content">
+                    <div class="delete-confirm-icon">
+                        <i class="fa-solid fa-trash"></i>
+                    </div>
+                    <p>Êtes-vous sûr de vouloir supprimer le rapport :</p>
+                    <p class="delete-confirm-name" id="deleteRapportName"></p>
+                    <p class="delete-confirm-warning">
+                        <i class="fa-solid fa-exclamation-circle"></i>
+                        Cette action est irréversible. Le rapport sera définitivement supprimé.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelDeleteRapportBtn">Annuler</button>
+                <button class="btn btn-danger" id="confirmDeleteRapportBtn">
+                    <i class="fa-solid fa-trash"></i> Supprimer définitivement
                 </button>
             </div>
         </div>
@@ -2948,6 +3057,24 @@
                 <button class="btn btn-primary" id="saveMontantFactureBtn">
                     <i class="fa-solid fa-check"></i> Ajouter la facture
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mon Profil -->
+    <div class="modal-overlay" id="myProfileModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fa-solid fa-id-card"></i> Mon Profil
+                </h2>
+                <button class="modal-close" id="closeMyProfileModal">&times;</button>
+            </div>
+            <div class="modal-body" id="myProfileBody">
+                <div class="my-profile-loading" style="text-align:center;padding:40px;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:var(--text-tertiary);"></i>
+                    <p style="color:var(--text-tertiary);margin-top:8px;">Chargement...</p>
+                </div>
             </div>
         </div>
     </div>
