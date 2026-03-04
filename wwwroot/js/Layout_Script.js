@@ -598,8 +598,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (ganttViewEl && (ganttViewEl.classList.contains("active") || !document.querySelector('.planning-view.active'))) {
             renderGantt();
         }
-        // Populate dependency dropdown for create modal
-        populateTaskDependencyDropdown("taskDependance", null);
+        // Populate dependency dropdown for create modal (filtered by selected project)
+        const selectedProjectId = $("taskProject")?.value ? parseInt($("taskProject").value) : null;
+        populateTaskDependencyDropdown("taskDependance", null, selectedProjectId);
     }
 
     function renderPlanningKpis() {
@@ -623,13 +624,13 @@ document.addEventListener("DOMContentLoaded", () => {
         el("kpiNextDeadline", nextDeadline);
     }
 
-    function populateTaskDependencyDropdown(selectId, excludeTaskId) {
+    function populateTaskDependencyDropdown(selectId, excludeTaskId, projetId) {
         const sel = $(selectId);
         if (!sel) return;
+        const filtered = cachedTasks.filter(t => t.id !== excludeTaskId && (!projetId || t.projetId === projetId));
         sel.innerHTML = '<option value="">Aucune dépendance</option>' +
-            cachedTasks
-                .filter(t => t.id !== excludeTaskId)
-                .map(t => `<option value="${t.id}">${t.titre} (${t.projet})</option>`)
+            filtered
+                .map(t => `<option value="${t.id}">${t.titre}</option>`)
                 .join("");
     }
 
@@ -2837,6 +2838,12 @@ document.addEventListener("DOMContentLoaded", () => {
         taskModal?.classList.add("active"),
     );
 
+    // Re-populate dependency dropdown when project changes in create modal
+    $("taskProject")?.addEventListener("change", (e) => {
+        const projetId = e.target.value ? parseInt(e.target.value) : null;
+        populateTaskDependencyDropdown("taskDependance", null, projetId);
+    });
+
     // Close modals
     $("closeProjectModal")?.addEventListener("click", () =>
         projectModal?.classList.remove("active"),
@@ -4400,9 +4407,18 @@ document.addEventListener("DOMContentLoaded", () => {
             assigneeSelect.value = t.assigneAId || "";
         }
 
-        // Populate dependency dropdown (exclude current task)
-        populateTaskDependencyDropdown("editTaskDependance", taskId);
+        // Populate dependency dropdown filtered by project (exclude current task)
+        populateTaskDependencyDropdown("editTaskDependance", taskId, t.projetId);
         if ($("editTaskDependance")) $("editTaskDependance").value = t.dependanceId || "";
+
+        // Re-populate dependency dropdown when project changes in edit modal
+        const editProjSelect = $("editTaskProject");
+        if (editProjSelect) {
+            editProjSelect.onchange = () => {
+                const pid = editProjSelect.value ? parseInt(editProjSelect.value) : null;
+                populateTaskDependencyDropdown("editTaskDependance", taskId, pid);
+            };
+        }
 
         editTaskModal?.classList.add("active");
     }

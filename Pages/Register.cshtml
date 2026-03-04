@@ -59,11 +59,7 @@
                        placeholder="email@exemple.com" required />
             </div>
 
-            <div class="input-box full">
-                <i class="fa-solid fa-briefcase"></i>
-                <input asp-for="Poste" placeholder="Poste (optionnel)" />
-            </div>
-
+           
             <div class="input-box full">
                 <i class="fa-solid fa-lock"></i>
                 <input asp-for="Password" type="password"
@@ -75,17 +71,6 @@
                 <input asp-for="ConfirmPassword" type="password"
                        placeholder="Confirmer le mot de passe" required />
             </div>
-
-            @if (Model.IsAdmin)
-            {
-                <div class="input-box full">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    <select asp-for="SelectedRole" asp-items="Model.RoleOptions"
-                            style="width:100%;border:none;outline:none;background:transparent;font-size:inherit;padding:4px 0;">
-                        <option value="">-- Assigner un r&#244;le --</option>
-                    </select>
-                </div>
-            }
 
             <button class="btn">Cr&#233;er un compte</button>
 
