@@ -114,6 +114,10 @@ public class UsersController : ControllerBase
         if (!await _roleManager.RoleExistsAsync(request.Role))
             return BadRequest("Rôle invalide.");
 
+        var existingRoles = await _userManager.GetRolesAsync(user);
+        if (existingRoles.Count > 0)
+            await _userManager.RemoveFromRolesAsync(user, existingRoles);
+
         user.EstApprouve = true;
         user.Poste = request.Poste;
         await _userManager.UpdateAsync(user);
