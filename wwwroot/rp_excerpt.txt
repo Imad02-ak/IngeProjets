@@ -1,0 +1,59 @@
+="page-section" id="page-rapports">
+                    <div class="page-header">
+                        <div class="page-header-left">
+                            <h2 class="page-title">Rapports &amp; Documents</h2>
+                            <p class="page-subtitle">
+                                Créez, générez et imprimez vos rapports officiels
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Types de Rapports -->
+                    <div class="reports-types">
+                        <div class="card report-type-card" data-report="quality">
+                            <div class="report-type-icon icon-danger">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                            </div>
+                            <h3 class="report-type-title">Contrôle Qualité</h3>
+                            <p class="report-type-desc">Contrôle qualité et conformité</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Qualite">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="bordereau">
+                            <div class="report-type-icon icon-primary">
+                                <i class="fa-solid fa-file-invoice"></i>
+                            </div>
+                            <h3 class="report-type-title">Bordereau</h3>
+                            <p class="report-type-desc">Bordereau des prix et quantités</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Bordereau">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="courrier">
+                            <div class="report-type-icon icon-success">
+                                <i class="fa-solid fa-envelope-open-text"></i>
+                            </div>
+                            <h3 class="report-type-title">Courrier</h3>
+                            <p class="report-type-desc">Courrier officiel du projet</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="Courrier">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="reception-provisoire">
+                            <div class="report-type-icon icon-warning">
+                                <i class="fa-solid fa-file-signature"></i>
+                            </div>
+                            <h3 class="report-type-title">Réception Provisoire</h3>
+                            <p class="report-type-desc">Demande de réception provisoire</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="ReceptionProvisoire">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="reception-definitive">
+                            <div class="report-type-icon icon-info">
+                                <i class="fa-solid fa-file-circle-check"></i>
+                            </div>
+                            <h3 class="report-type-title">Réception Définitive</h3>
+                            <p class="report-type-desc">Demande de réception définitive</p>
+                            <button class="btn btn-sm btn-outline" data-open-rapport="ReceptionDefinitive">Créer</button>
+                        </div>
+                        <div class="card report-type-card" data-report="custom">
+                            <div class="report-type-icon icon-purple">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <h3 class="report-type-title">Personnalisé</h3>
+                            <p class="report-type-desc">Créez votre propre rapport</p>
+                            <button clas

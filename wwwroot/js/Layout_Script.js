@@ -274,6 +274,350 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("popstate", handleHash);
 
     // ===========================
+    // GLOBAL SEARCH
+    // ===========================
+    (function initGlobalSearch() {
+        const searchInput = $("globalSearch");
+        const searchResults = $("globalSearchResults");
+        const searchContent = $("searchResultsContent");
+        if (!searchInput || !searchResults || !searchContent) return;
+
+        let searchTimer = null;
+        let currentAbort = null;
+
+        function getCurrentPage() {
+            const hash = window.location.hash.slice(1);
+            return pages[hash] ? hash : "dashboard";
+        }
+
+        function openSearchResults() { searchResults.classList.add("active"); }
+        function closeSearchResults() { searchResults.classList.remove("active"); }
+
+        searchInput.addEventListener("input", () => {
+            const query = searchInput.value.trim();
+            if (searchTimer) clearTimeout(searchTimer);
+            if (query.length < 1) { closeSearchResults(); return; }
+
+            // Show instant local results first, then fetch API results
+            const currentPage = getCurrentPage();
+            const localData = getLocalResults(query, currentPage);
+            if (localData) {
+                renderSearchResults(localData, query, currentPage);
+                openSearchResults();
+            } else {
+                searchContent.innerHTML = '<div class="search-loading"><i class="fa-solid fa-spinner fa-spin"></i> Recherche...</div>';
+                openSearchResults();
+            }
+
+            searchTimer = setTimeout(() => performSearch(query), 200);
+        });
+
+        searchInput.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") { closeSearchResults(); searchInput.blur(); }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".global-search")) closeSearchResults();
+        });
+
+        // Search local cached data for instant results based on current page
+        function getLocalResults(query, currentPage) {
+            const q = query.toLowerCase();
+            const results = { projets: [], taches: [], utilisateurs: [], rapports: [] };
+            let hasResults = false;
+
+            // Search cached projects
+            if (cachedProjects.length) {
+                results.projets = cachedProjects.filter(p =>
+                    (p.nom && p.nom.toLowerCase().includes(q)) ||
+                    (p.code && p.code.toLowerCase().includes(q)) ||
+                    (p.localisation && p.localisation.toLowerCase().includes(q)) ||
+                    (p.maitreOuvrage && p.maitreOuvrage.toLowerCase().includes(q))
+                ).slice(0, 5).map(p => ({
+                    id: p.id, nom: p.nom, code: p.code,
+                    statut: p.statut, type: p.type, categorie: "projet"
+                }));
+                if (results.projets.length) hasResults = true;
+            }
+
+            // Search cached tasks
+            if (cachedTasks.length) {
+                results.taches = cachedTasks.filter(t =>
+                    (t.titre && t.titre.toLowerCase().includes(q)) ||
+                    (t.phase && t.phase.toLowerCase().includes(q)) ||
+                    (t.projet && t.projet.toLowerCase().includes(q))
+                ).slice(0, 5).map(t => ({
+                    id: t.id, nom: t.titre, projet: t.projet,
+                    projetId: t.projetId, statut: t.statut, categorie: "tache"
+                }));
+                if (results.taches.length) hasResults = true;
+            }
+
+            // Search cached users
+            if (cachedUsers.length) {
+                results.utilisateurs = cachedUsers.filter(u =>
+                    (u.nomComplet && u.nomComplet.toLowerCase().includes(q)) ||
+                    (u.email && u.email.toLowerCase().includes(q))
+                ).slice(0, 5).map(u => ({
+                    id: u.id, nom: u.nomComplet, email: u.email, categorie: "utilisateur"
+                }));
+                if (results.utilisateurs.length) hasResults = true;
+            }
+
+            // Search cached rapports
+            if (cachedRapports && cachedRapports.length) {
+                results.rapports = cachedRapports.filter(r =>
+                    (r.titre && r.titre.toLowerCase().includes(q)) ||
+                    (r.projet && r.projet.toLowerCase().includes(q))
+                ).slice(0, 5).map(r => ({
+                    id: r.id, titre: r.titre, type: r.type,
+                    projet: r.projet, categorie: "rapport"
+                }));
+                if (results.rapports.length) hasResults = true;
+            }
+
+            return hasResults ? results : null;
+        }
+
+        async function performSearch(query) {
+            if (currentAbort) currentAbort.abort();
+            currentAbort = new AbortController();
+
+            const currentPage = getCurrentPage();
+            const hadLocalResults = searchContent.querySelector(".search-result-item") !== null;
+
+            try {
+                const res = await fetch(`/api/dashboard/search?q=${encodeURIComponent(query)}&context=${encodeURIComponent(currentPage)}`, {
+                    signal: currentAbort.signal
+                });
+                if (!res.ok) { if (!hadLocalResults) renderEmpty(query); return; }
+                const data = await res.json();
+                if (!data) { if (!hadLocalResults) renderEmpty(query); return; }
+
+                const hasApiResults = (data.projets?.length || 0) + (data.taches?.length || 0) +
+                    (data.utilisateurs?.length || 0) + (data.rapports?.length || 0) > 0;
+
+                if (hasApiResults) {
+                    renderSearchResults(data, query, currentPage);
+                } else if (!hadLocalResults) {
+                    renderEmpty(query);
+                }
+            } catch (err) {
+                if (err.name !== "AbortError" && !hadLocalResults) renderEmpty(query);
+            }
+        }
+
+        function highlightMatch(text, query) {
+            if (!text || !query) return esc(text);
+            const escaped = esc(text);
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+            return escaped.replace(regex, '<mark>$1</mark>');
+        }
+
+        // Build HTML for each result group
+        function buildProjectsHtml(items, query) {
+            let html = '<div class="search-group-title"><i class="fa-solid fa-folder-open"></i> Projets</div>';
+            items.forEach(p => {
+                const statusLabel = statusLabels[p.statut] || p.statut;
+                html += `<div class="search-result-item" data-search-action="projet" data-search-id="${p.id}">
+                    <div class="search-result-icon icon-projet"><i class="fa-solid fa-${typeIconMap[p.type] || 'folder'}"></i></div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${highlightMatch(p.nom, query)}</div>
+                        <div class="search-result-meta">${p.code ? esc(p.code) + ' · ' : ''}${statusLabel}</div>
+                    </div>
+                    <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function buildTachesHtml(items, query) {
+            let html = '<div class="search-group-title"><i class="fa-solid fa-list-check"></i> Tâches</div>';
+            items.forEach(t => {
+                html += `<div class="search-result-item" data-search-action="tache" data-search-id="${t.id}" data-search-projet="${t.projetId}">
+                    <div class="search-result-icon icon-tache"><i class="fa-solid fa-check-circle"></i></div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${highlightMatch(t.nom, query)}</div>
+                        <div class="search-result-meta"><i class="fa-solid fa-folder"></i> ${esc(t.projet)}</div>
+                    </div>
+                    <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function buildUsersHtml(items, query) {
+            let html = '<div class="search-group-title"><i class="fa-solid fa-users"></i> Utilisateurs</div>';
+            items.forEach(u => {
+                html += `<div class="search-result-item" data-search-action="utilisateur" data-search-id="${u.id}">
+                    <div class="search-result-icon icon-utilisateur"><i class="fa-solid fa-user"></i></div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${highlightMatch(u.nom, query)}</div>
+                        <div class="search-result-meta">${esc(u.email || '')}</div>
+                    </div>
+                    <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function buildRapportsHtml(items, query) {
+            const rapportTypeLabels = { Qualite: "Contrôle Qualité", Personnalise: "Personnalisé", Bordereau: "Bordereau", Courrier: "Courrier", ReceptionProvisoire: "Réception Provisoire", ReceptionDefinitive: "Réception Définitive" };
+            let html = '<div class="search-group-title"><i class="fa-solid fa-file-lines"></i> Rapports</div>';
+            items.forEach(r => {
+                const typeLabel = rapportTypeLabels[r.type] || r.type;
+                html += `<div class="search-result-item" data-search-action="rapport" data-search-id="${r.id}">
+                    <div class="search-result-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6"><i class="fa-solid fa-file-lines"></i></div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${highlightMatch(r.titre, query)}</div>
+                        <div class="search-result-meta">${esc(typeLabel)}${r.projet ? ' · ' + esc(r.projet) : ''}</div>
+                    </div>
+                    <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function buildPagesHtml(items, query) {
+            let html = '<div class="search-group-title"><i class="fa-solid fa-compass"></i> Pages</div>';
+            items.forEach(pg => {
+                html += `<div class="search-result-item" data-search-action="page" data-search-page="${pg.key}">
+                    <div class="search-result-icon" style="background:rgba(229,9,8,0.1);color:var(--color-red)"><i class="fa-solid ${pg.icon}"></i></div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${highlightMatch(pg.label, query)}</div>
+                        <div class="search-result-meta">${esc(pg.desc)}</div>
+                    </div>
+                    <div class="search-result-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function renderSearchResults(data, query, currentPage) {
+            let html = "";
+            let totalResults = 0;
+
+            // Determine group rendering order based on current page
+            const groups = [];
+
+            const projets = data.projets || [];
+            const taches = data.taches || [];
+            const utilisateurs = data.utilisateurs || [];
+            const rapports = data.rapports || [];
+            const pageResults = searchPages(query);
+
+            if (projets.length) groups.push({ key: "projets", items: projets, build: () => buildProjectsHtml(projets, query) });
+            if (taches.length) groups.push({ key: "taches", items: taches, build: () => buildTachesHtml(taches, query) });
+            if (utilisateurs.length) groups.push({ key: "utilisateurs", items: utilisateurs, build: () => buildUsersHtml(utilisateurs, query) });
+            if (rapports.length) groups.push({ key: "rapports", items: rapports, build: () => buildRapportsHtml(rapports, query) });
+            if (pageResults.length) groups.push({ key: "pages", items: pageResults, build: () => buildPagesHtml(pageResults, query) });
+
+            // Page-to-group priority mapping
+            const contextPriority = {
+                projets: "projets",
+                planning: "taches",
+                budgets: "projets",
+                rapports: "rapports",
+                utilisateurs: "utilisateurs",
+                archives: "projets",
+            };
+
+            const priorityKey = contextPriority[currentPage];
+            if (priorityKey) {
+                groups.sort((a, b) => {
+                    const aMatch = a.key === priorityKey ? -1 : 0;
+                    const bMatch = b.key === priorityKey ? -1 : 0;
+                    return aMatch - bMatch;
+                });
+            }
+
+            groups.forEach(g => {
+                totalResults += g.items.length;
+                html += g.build();
+            });
+
+            if (totalResults === 0) {
+                renderEmpty(query);
+                return;
+            }
+
+            searchContent.innerHTML = html;
+            bindSearchResultClicks();
+        }
+
+        function searchPages(query) {
+            const q = query.toLowerCase();
+            const pageDefinitions = [
+                { key: "dashboard", label: "Tableau de bord", desc: "Vue d'ensemble des projets", icon: "fa-chart-line", keywords: ["tableau", "bord", "dashboard", "accueil", "kpi"] },
+                { key: "projets", label: "Projets", desc: "Gestion des projets et chantiers", icon: "fa-folder-open", keywords: ["projet", "chantier", "travaux"] },
+                { key: "planning", label: "Planning", desc: "Planning, calendrier et tâches", icon: "fa-calendar-days", keywords: ["planning", "calendrier", "gantt", "kanban", "tache", "tâche"] },
+                { key: "budgets", label: "Montants", desc: "Suivi financier et budgets", icon: "fa-sack-dollar", keywords: ["montant", "budget", "finance", "devis", "facture", "situation"] },
+                { key: "rapports", label: "Rapports", desc: "Rapports et documents", icon: "fa-chart-bar", keywords: ["rapport", "document", "courrier", "bordereau"] },
+                { key: "archives", label: "Archives", desc: "Projets et tâches archivés", icon: "fa-box-archive", keywords: ["archive", "archivé"] },
+                { key: "utilisateurs", label: "Utilisateurs", desc: "Gestion des utilisateurs", icon: "fa-users", keywords: ["utilisateur", "equipe", "équipe", "membre"] },
+                { key: "parametres", label: "Paramètres", desc: "Configuration de l'application", icon: "fa-gear", keywords: ["parametre", "paramètre", "config", "réglage"] },
+                { key: "support", label: "Aide & support", desc: "FAQ et assistance", icon: "fa-circle-question", keywords: ["aide", "support", "faq", "question"] }
+            ];
+            return pageDefinitions.filter(p =>
+                p.label.toLowerCase().includes(q) ||
+                p.desc.toLowerCase().includes(q) ||
+                p.keywords.some(k => k.includes(q))
+            );
+        }
+
+        function renderEmpty(query) {
+            searchContent.innerHTML = `<div class="search-empty">
+                <i class="fa-solid fa-search"></i>
+                Aucun résultat pour « ${esc(query)} »
+            </div>`;
+            openSearchResults();
+        }
+
+        function bindSearchResultClicks() {
+            searchContent.querySelectorAll(".search-result-item").forEach(item => {
+                item.addEventListener("click", () => {
+                    const action = item.dataset.searchAction;
+                    const id = item.dataset.searchId;
+
+                    if (action === "page") {
+                        navigateTo(item.dataset.searchPage);
+                    } else if (action === "projet") {
+                        navigateTo("projets");
+                        setTimeout(() => {
+                            const searchBox = $("projectSearch");
+                            if (searchBox) {
+                                const name = item.querySelector(".search-result-name")?.textContent || "";
+                                searchBox.value = name;
+                                searchBox.dispatchEvent(new Event("input"));
+                            }
+                        }, 300);
+                    } else if (action === "tache") {
+                        navigateTo("planning");
+                        if (id) setTimeout(() => openTaskEdit(parseInt(id)), 300);
+                    } else if (action === "utilisateur") {
+                        navigateTo("utilisateurs");
+                        if (id) {
+                            setTimeout(() => {
+                                const searchBox = $("userSearch");
+                                if (searchBox) {
+                                    const name = item.querySelector(".search-result-name")?.textContent || "";
+                                    searchBox.value = name;
+                                    searchBox.dispatchEvent(new Event("input"));
+                                }
+                            }, 300);
+                        }
+                    } else if (action === "rapport") {
+                        navigateTo("rapports");
+                    }
+
+                    searchInput.value = "";
+                    closeSearchResults();
+                });
+            });
+        }
+    })();
+
+    // ===========================
     // RENDER DASHBOARD
     // ===========================
     async function renderDashboard() {
@@ -2808,20 +3152,23 @@ document.addEventListener("DOMContentLoaded", () => {
     startAutoRefresh();
 
     // ===========================
-    // FAQ ACCORDION
+    // FAQ ACCORDION (delegated)
     // ===========================
-    $$(".faq-question").forEach((question) => {
-        question.addEventListener("click", () => {
+    const faqList = $("faqList");
+    if (faqList) {
+        faqList.addEventListener("click", (e) => {
+            const question = e.target.closest(".faq-question");
+            if (!question) return;
             const item = question.parentElement;
             const isActive = item.classList.contains("active");
 
             // Fermer tous les autres
-            $$(".faq-item").forEach((i) => i.classList.remove("active"));
+            faqList.querySelectorAll(".faq-item").forEach((i) => i.classList.remove("active"));
 
             // Toggle celui-ci
             if (!isActive) item.classList.add("active");
         });
-    });
+    }
 
     // ===========================
     // MODALS
@@ -3882,115 +4229,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ===========================
-    // SEARCH FUNCTIONALITY
-    // ===========================
-    let searchTimeout = null;
-    let searchResultsEl = null;
-
-    function ensureSearchDropdown() {
-        if (searchResultsEl) return searchResultsEl;
-        searchResultsEl = document.createElement("div");
-        searchResultsEl.className = "global-search-results";
-        searchResultsEl.id = "globalSearchResults";
-        const searchContainer = document.querySelector(".global-search");
-        if (searchContainer) {
-            searchContainer.style.position = "relative";
-            searchContainer.appendChild(searchResultsEl);
-        }
-        return searchResultsEl;
-    }
-
-    function closeSearchResults() {
-        if (searchResultsEl) {
-            searchResultsEl.innerHTML = "";
-            searchResultsEl.classList.remove("active");
-        }
-    }
-
-    $("globalSearch")?.addEventListener("input", (e) => {
-        const query = e.target.value.trim();
-        if (searchTimeout) clearTimeout(searchTimeout);
-        if (query.length < 1) { closeSearchResults(); return; }
-
-        searchTimeout = setTimeout(async () => {
-            const results = await api(`/api/dashboard/search?q=${encodeURIComponent(query)}`);
-            if (!results) { closeSearchResults(); return; }
-
-            const dropdown = ensureSearchDropdown();
-            let html = "";
-
-            const hasResults = (results.projets?.length || 0) + (results.taches?.length || 0) + (results.utilisateurs?.length || 0);
-
-            if (!hasResults) {
-                html = '<div class="search-empty"><i class="fa-solid fa-search"></i> Aucun résultat pour "' + esc(query) + '"</div>';
-            } else {
-                if (results.projets?.length > 0) {
-                    html += '<div class="search-group-title"><i class="fa-solid fa-folder-open"></i> Projets</div>';
-                    results.projets.forEach(p => {
-                        const ti = typeIconMap[p.type] || "folder";
-                        html += `<a href="#" class="search-result-item" data-search-action="project" data-search-id="${p.id}">
-                            <div class="search-result-icon"><i class="fa-solid fa-${ti}"></i></div>
-                            <div class="search-result-info">
-                                <span class="search-result-name">${esc(p.nom)}</span>
-                                <span class="search-result-meta">${p.code ? esc(p.code) + ' · ' : ''}${esc(statusLabels[p.statut] || p.statut)}</span>
-                            </div>
-                        </a>`;
-                    });
-                }
-                if (results.taches?.length > 0) {
-                    html += '<div class="search-group-title"><i class="fa-solid fa-list-check"></i> Tâches</div>';
-                    results.taches.forEach(t => {
-                        html += `<a href="#" class="search-result-item" data-search-action="task" data-search-id="${t.id}">
-                            <div class="search-result-icon"><i class="fa-solid fa-tasks"></i></div>
-                            <div class="search-result-info">
-                                <span class="search-result-name">${esc(t.nom)}</span>
-                                <span class="search-result-meta">${esc(t.projet)}</span>
-                            </div>
-                        </a>`;
-                    });
-                }
-                if (results.utilisateurs?.length > 0) {
-                    html += '<div class="search-group-title"><i class="fa-solid fa-users"></i> Utilisateurs</div>';
-                    results.utilisateurs.forEach(u => {
-                        html += `<a href="#" class="search-result-item" data-search-action="user" data-search-id="${u.id}">
-                            <div class="search-result-icon"><i class="fa-solid fa-user"></i></div>
-                            <div class="search-result-info">
-                                <span class="search-result-name">${esc(u.nom)}</span>
-                                <span class="search-result-meta">${esc(u.email)}</span>
-                            </div>
-                        </a>`;
-                    });
-                }
-            }
-
-            dropdown.innerHTML = html;
-            dropdown.classList.add("active");
-        }, 300);
-    });
-
-    // Handle search result clicks
+    // Handle dashboard navigation clicks (projects, activities, upcoming tasks)
     document.addEventListener("click", (e) => {
-        const item = e.target.closest(".search-result-item");
-        if (item) {
-            e.preventDefault();
-            const action = item.dataset.searchAction;
-            const id = item.dataset.searchId;
-            closeSearchResults();
-            $("globalSearch").value = "";
-
-            if (action === "project") {
-                navigateTo("projets");
-                setTimeout(() => openProjectView(parseInt(id)), 300);
-            } else if (action === "task") {
-                navigateTo("planning");
-                setTimeout(() => openTaskEdit(parseInt(id)), 300);
-            } else if (action === "user") {
-                navigateTo("utilisateurs");
-            }
-            return;
-        }
-
         // Click on recent project item in dashboard
         const navProject = e.target.closest("[data-nav-project]");
         if (navProject) {
@@ -4031,15 +4271,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return;
         }
-
-        // Close search results on outside click
-        if (!e.target.closest(".global-search")) {
-            closeSearchResults();
-        }
-    });
-
-    $("globalSearch")?.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") { closeSearchResults(); $("globalSearch").value = ""; }
     });
 
     // ===========================
@@ -5091,4 +5322,252 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Periodically refresh notification badge (every 30 seconds)
     setInterval(() => { if (typeof refreshNotifBadge === "function") refreshNotifBadge(); }, 30000);
+
+    // ===========================
+    // SUPPORT PAGE – Full interactivity
+    // ===========================
+    (function initSupportPage() {
+        // ── State ────────────────────────────────────
+        const TICKETS_KEY = "ingeprojets_tickets";
+        let activeSupportCategory = "";
+
+        // ── Helpers ──────────────────────────────────
+        function loadTickets() {
+            try { return JSON.parse(localStorage.getItem(TICKETS_KEY)) || []; }
+            catch { return []; }
+        }
+        function saveTickets(tickets) {
+            localStorage.setItem(TICKETS_KEY, JSON.stringify(tickets));
+        }
+        function generateTicketId() {
+            const n = (loadTickets().length + 1).toString().padStart(4, "0");
+            return "#TK-" + new Date().getFullYear() + "-" + n;
+        }
+        function timeAgo(dateStr) {
+            const diff = Date.now() - new Date(dateStr).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return "À l'instant";
+            if (mins < 60) return "Il y a " + mins + " min";
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return "Il y a " + hours + " h";
+            const days = Math.floor(hours / 24);
+            return "Il y a " + days + " jour" + (days > 1 ? "s" : "");
+        }
+
+        // ── Search filtering ─────────────────────────
+        const supportSearchInput = $("supportSearch");
+        if (supportSearchInput) {
+            supportSearchInput.addEventListener("input", () => {
+                const query = supportSearchInput.value.trim().toLowerCase();
+                filterSupportContent(query, activeSupportCategory);
+            });
+        }
+
+        function filterSupportContent(query, category) {
+            const faqItems = $$("#faqList .faq-item");
+            let visibleCount = 0;
+
+            faqItems.forEach((item) => {
+                const text = item.textContent.toLowerCase();
+                const cats = (item.dataset.faqCategory || "").toLowerCase();
+                const matchesQuery = !query || text.includes(query);
+                const matchesCategory = !category || cats.includes(category);
+                const show = matchesQuery && matchesCategory;
+                item.style.display = show ? "" : "none";
+                if (show) visibleCount++;
+            });
+
+            const emptyEl = $("faqEmpty");
+            if (emptyEl) emptyEl.style.display = visibleCount === 0 ? "" : "none";
+
+            // Also filter help categories by search query
+            $$(".help-category").forEach((card) => {
+                if (!query) {
+                    card.style.display = "";
+                    return;
+                }
+                const title = (card.querySelector(".help-category-title")?.textContent || "").toLowerCase();
+                const desc = (card.querySelector(".help-category-desc")?.textContent || "").toLowerCase();
+                card.style.display = (title.includes(query) || desc.includes(query)) ? "" : "none";
+            });
+        }
+
+        // ── Help category click ──────────────────────
+        $$(".help-category").forEach((card) => {
+            card.addEventListener("click", () => {
+                const cat = (card.dataset.category || "").toLowerCase();
+
+                if (activeSupportCategory === cat) {
+                    activeSupportCategory = "";
+                    card.classList.remove("help-category--active");
+                } else {
+                    $$(".help-category").forEach((c) => c.classList.remove("help-category--active"));
+                    activeSupportCategory = cat;
+                    card.classList.add("help-category--active");
+                }
+
+                filterSupportContent(supportSearchInput?.value?.trim()?.toLowerCase() || "", activeSupportCategory);
+            });
+        });
+
+        // ── Render tickets list ──────────────────────
+        function renderTickets() {
+            const list = $("ticketsList");
+            if (!list) return;
+            const tickets = loadTickets();
+
+            if (tickets.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-tertiary);"><i class="fa-solid fa-ticket" style="font-size:24px; display:block; margin-bottom:8px;"></i>Aucun ticket pour le moment</div>';
+                return;
+            }
+
+            const priorityLabels = { low: "Basse", medium: "Moyenne", high: "Haute", urgent: "Urgente" };
+            const statusClasses = { open: "status-open", progress: "status-progress", resolved: "status-resolved" };
+
+            list.innerHTML = tickets.slice().reverse().slice(0, 10).map((t) => {
+                return '<div class="ticket-item" data-ticket-id="' + esc(t.id) + '">' +
+                    '<div class="ticket-status ' + (statusClasses[t.status] || "status-open") + '"></div>' +
+                    '<div class="ticket-info">' +
+                        '<span class="ticket-id">' + esc(t.id) + '</span>' +
+                        '<span class="ticket-title">' + esc(t.subject) + '</span>' +
+                        '<span class="ticket-date">' + timeAgo(t.date) + '</span>' +
+                    '</div>' +
+                    '<span class="ticket-priority priority-' + t.priority + '">' + (priorityLabels[t.priority] || t.priority) + '</span>' +
+                '</div>';
+            }).join("");
+
+            // Click on ticket to cycle status
+            list.querySelectorAll(".ticket-item").forEach((item) => {
+                item.style.cursor = "pointer";
+                item.addEventListener("click", () => {
+                    const tid = item.dataset.ticketId;
+                    const allTickets = loadTickets();
+                    const ticket = allTickets.find((t) => t.id === tid);
+                    if (!ticket) return;
+                    const cycle = { open: "progress", progress: "resolved", resolved: "open" };
+                    ticket.status = cycle[ticket.status] || "open";
+                    saveTickets(allTickets);
+                    renderTickets();
+                    const statusLabels = { open: "Ouvert", progress: "En cours", resolved: "Résolu" };
+                    showToast("info", "Ticket mis à jour", esc(tid) + " → " + statusLabels[ticket.status]);
+                });
+            });
+        }
+
+        renderTickets();
+
+        // ── Ticket modal ─────────────────────────────
+        function openSupportModal(id) { const m = $(id); if (m) m.classList.add("active"); }
+        function closeSupportModal(id) { const m = $(id); if (m) m.classList.remove("active"); }
+
+        $("newTicketBtn")?.addEventListener("click", () => {
+            openSupportModal("ticketFormModal");
+        });
+        $("newTicketBtnAlt")?.addEventListener("click", () => {
+            openSupportModal("ticketFormModal");
+        });
+
+        $("closeTicketFormModal")?.addEventListener("click", () => closeSupportModal("ticketFormModal"));
+        $("cancelTicketFormBtn")?.addEventListener("click", () => closeSupportModal("ticketFormModal"));
+        $("ticketFormModal")?.addEventListener("click", (e) => {
+            if (e.target.id === "ticketFormModal") closeSupportModal("ticketFormModal");
+        });
+
+        $("saveTicketBtn")?.addEventListener("click", () => {
+            const subject = $("ticketSubject")?.value?.trim();
+            const desc = $("ticketDescription")?.value?.trim();
+            const category = $("ticketCategory")?.value || "general";
+            const priority = $("ticketPrioritySelect")?.value || "medium";
+
+            if (!subject) { showToast("error", "Erreur", "Le sujet est requis."); return; }
+            if (!desc) { showToast("error", "Erreur", "La description est requise."); return; }
+
+            const tickets = loadTickets();
+            const newTicket = {
+                id: generateTicketId(),
+                subject: subject,
+                description: desc,
+                category: category,
+                priority: priority,
+                status: "open",
+                date: new Date().toISOString()
+            };
+            tickets.push(newTicket);
+            saveTickets(tickets);
+
+            closeSupportModal("ticketFormModal");
+            const form = $("ticketForm");
+            if (form) form.reset();
+
+            showToast("success", "Ticket créé", newTicket.id + " — " + esc(subject));
+            renderTickets();
+        });
+
+        // ── Chat modal ───────────────────────────────
+        const chatResponses = [
+            "Merci pour votre message. Un agent va vous répondre sous peu.",
+            "Je comprends votre situation. Pouvez-vous me donner plus de détails ?",
+            "Nous travaillons actuellement sur une solution. Veuillez patienter.",
+            "Avez-vous essayé de vider le cache de votre navigateur ?",
+            "Je vais transférer votre demande à l'équipe technique.",
+            "Votre demande a été enregistrée. Numéro de référence : REF-" + Math.floor(Math.random() * 9000 + 1000),
+            "Est-ce que le problème persiste après un rafraîchissement de la page ?",
+            "Merci pour votre patience. Nous allons résoudre cela rapidement."
+        ];
+
+        $("startChatBtn")?.addEventListener("click", () => {
+            openSupportModal("chatModal");
+            const msgs = $("chatMessages");
+            if (msgs && msgs.children.length <= 1) {
+                // Already has the welcome message
+            }
+        });
+
+        $("closeChatModal")?.addEventListener("click", () => closeSupportModal("chatModal"));
+        $("chatModal")?.addEventListener("click", (e) => {
+            if (e.target.id === "chatModal") closeSupportModal("chatModal");
+        });
+
+        function sendChatMessage() {
+            const input = $("chatInput");
+            const msgs = $("chatMessages");
+            if (!input || !msgs) return;
+            const text = input.value.trim();
+            if (!text) return;
+
+            // User bubble
+            const userBubble = document.createElement("div");
+            userBubble.className = "chat-bubble chat-bubble--user";
+            userBubble.style.cssText = "background:var(--color-primary); color:#fff; padding:12px 16px; border-radius:12px; max-width:80%; align-self:flex-end;";
+            userBubble.innerHTML = "<p style='margin:0;'>" + esc(text) + "</p>";
+            msgs.appendChild(userBubble);
+
+            input.value = "";
+            msgs.scrollTop = msgs.scrollHeight;
+
+            // Simulated bot response after delay
+            setTimeout(() => {
+                const resp = chatResponses[Math.floor(Math.random() * chatResponses.length)];
+                const botBubble = document.createElement("div");
+                botBubble.className = "chat-bubble chat-bubble--bot";
+                botBubble.style.cssText = "background:var(--bg-secondary); padding:12px 16px; border-radius:12px; max-width:80%; align-self:flex-start;";
+                botBubble.innerHTML = '<strong style="color:var(--color-primary); font-size:var(--font-sm);">Support Ingé-Projets</strong><p style="margin:4px 0 0; color:var(--text-primary);">' + esc(resp) + "</p>";
+                msgs.appendChild(botBubble);
+                msgs.scrollTop = msgs.scrollHeight;
+            }, 800 + Math.random() * 1200);
+        }
+
+        $("chatSendBtn")?.addEventListener("click", sendChatMessage);
+        $("chatInput")?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+        });
+
+        // ── Documentation button ─────────────────────
+        $("openDocsBtn")?.addEventListener("click", () => {
+            showToast("info", "Documentation", "La section documentation sera bientôt disponible.");
+        });
+
+    })();
+
 });
+

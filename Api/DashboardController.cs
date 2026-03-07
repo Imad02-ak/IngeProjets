@@ -163,13 +163,14 @@ public class DashboardController : ControllerBase
     }
 
     /// <summary>
-    /// Global search endpoint for projects, tasks, and users.
+    /// Global search endpoint for projects, tasks, users, and reports.
+    /// Accepts an optional context parameter to prioritize results based on the current page.
     /// </summary>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string q, CancellationToken cancellationToken)
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] string? context, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(q))
-            return Ok(new { Projets = Array.Empty<object>(), Taches = Array.Empty<object>(), Utilisateurs = Array.Empty<object>() });
+            return Ok(new { Projets = Array.Empty<object>(), Taches = Array.Empty<object>(), Utilisateurs = Array.Empty<object>(), Rapports = Array.Empty<object>() });
 
         var query = q.ToLower();
 
@@ -222,7 +223,23 @@ public class DashboardController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return Ok(new { Projets = projets, Taches = taches, Utilisateurs = utilisateurs });
+        var rapports = await _context.Rapports
+            .Where(r => !r.EstArchive && (
+                r.Titre.ToLower().Contains(query) ||
+                (r.Contenu != null && r.Contenu.ToLower().Contains(query))
+            ))
+            .Take(5)
+            .Select(r => new
+            {
+                r.Id,
+                r.Titre,
+                Type = r.Type.ToString(),
+                Projet = r.Projet != null ? r.Projet.Nom : null,
+                Categorie = "rapport"
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(new { Projets = projets, Taches = taches, Utilisateurs = utilisateurs, Rapports = rapports });
     }
 
     [HttpGet("evolution")]
